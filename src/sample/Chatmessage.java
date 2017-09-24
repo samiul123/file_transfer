@@ -8,10 +8,16 @@ public class Chatmessage implements Serializable{
     private int type;
     private String message;
     private String recipient;
-    Chatmessage(int type, String message, String recipient){
+    private String fileName;
+    Chatmessage(int type, String message, String recipient,String fileName){
         this.type = type;
         this.message = message;
         this.recipient = recipient;
+        this.fileName = fileName;
+    }
+
+    public String getFileName() {
+        return fileName;
     }
 
     public String getRecipient() {

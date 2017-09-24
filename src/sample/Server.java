@@ -132,7 +132,6 @@ public class Server {
         ObjectOutputStream sOutput;
         int id;
         String username;
-        String recipient;
         Chatmessage cm;
         String date;
 
@@ -164,9 +163,10 @@ public class Server {
                 }
                 String recipient = cm.getRecipient();
                 String message = cm.getMessage();
+                String fileName = cm.getFileName();
                 switch (cm.getType()){
                     case Chatmessage.MESSAGE:
-                        broadcast(username + ": " + message,recipient);
+                        broadcast(username + ": " + message + fileName,recipient);
                         break;
                     case Chatmessage.LOGOUT:
                         display(username + "disconnected with a LOGOUT message");

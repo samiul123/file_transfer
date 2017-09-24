@@ -20,15 +20,16 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
     private static final long serialVersionUID = 1L;
     private Label label;
-    private TextField tf,recipient;
+    private TextField tf,recipient,fileText;
     private TextField serverAddress, portAddress;
-    private Button login, logout, whoIsIn, send;
+    private Button login, logout, whoIsIn, sendMessage, sendFile;
     private TextArea ta;
     private boolean connected;
     private Client client;
     private int defaultPort = 1500;
     private String defaultHost = "localhost";
     Scene scene;
+    int fileName;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -65,9 +66,16 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
         Label label1 = new Label("Enter recipient name: ");
         recipient = new TextField();
+        recipient.setPromptText("Recipient name");
         vBoxRecipient.getChildren().addAll(label1, recipient);
 
-        hBoxUser.getChildren().addAll(vBoxUser, vBoxRecipient);
+        fileText = new TextField();
+        fileText.setPromptText("File name");
+        Label fileLabel = new Label("Enter file name:");
+
+        VBox fileVBox = new VBox();
+        fileVBox.getChildren().addAll(fileLabel, fileText);
+        hBoxUser.getChildren().addAll(vBoxUser, vBoxRecipient, fileVBox);
         GridPane.setConstraints(hBoxUser, 0, 1);
 
         HBox hBox1 = new HBox();
@@ -82,10 +90,15 @@ public class ClientGUI extends ServerGui implements EventHandler{
         whoIsIn.addEventHandler(MouseEvent.MOUSE_CLICKED,this);
         whoIsIn.setDisable(true);
 
-        send = new Button("Send");
-        send.addEventHandler(MouseEvent.MOUSE_CLICKED,this);
-        send.setDisable(true);
-        hBox1.getChildren().addAll(login, logout, whoIsIn,send);
+        sendMessage = new Button("Send message");
+        sendMessage.addEventHandler(MouseEvent.MOUSE_CLICKED,this);
+        sendMessage.setDisable(true);
+
+        sendFile = new Button("Send file");
+        sendFile.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
+        sendFile.setDisable(true);
+
+        hBox1.getChildren().addAll(login, logout, whoIsIn,sendMessage, sendFile);
         GridPane.setConstraints(hBox1, 0,3);
 
         gridPane.getChildren().addAll(hBox, hBoxUser,ta,hBox1);
@@ -103,7 +116,8 @@ public class ClientGUI extends ServerGui implements EventHandler{
         login.setDisable(false);
         logout.setDisable(false);
         whoIsIn.setDisable(false);
-        send.setDisable(false);
+        sendMessage.setDisable(false);
+        sendFile.setDisable(false);
         label.setText("Enter username");
         tf.setPromptText("Username");
         portAddress.setText(""+defaultPort);
@@ -121,14 +135,19 @@ public class ClientGUI extends ServerGui implements EventHandler{
     public void handle(Event event) {
         Object o = event.getSource();
         if(o == logout){
-            client.sendMessage(new Chatmessage(Chatmessage.LOGOUT,"",""));
+            client.sendMessage(new Chatmessage(Chatmessage.LOGOUT,"","",""));
         }
         if(o == whoIsIn){
-            client.sendMessage(new Chatmessage(Chatmessage.WHOISIN,"",""));
+            client.sendMessage(new Chatmessage(Chatmessage.WHOISIN,"","",""));
         }
-        if(connected && o == send){
-            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),recipient.getText()));
+        if(connected && o == sendMessage){
+            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),recipient.getText(),""));
             tf.setText("");
+        }
+        if(connected && o == sendFile){
+            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,"",recipient.getText(),fileText.getText()));
+            fileText.setText("");
+
         }
         if(o == login){
             String username = tf.getText().trim();
@@ -173,7 +192,8 @@ public class ClientGUI extends ServerGui implements EventHandler{
                 login.setDisable(true);
                 logout.setDisable(false);
                 whoIsIn.setDisable(false);
-                send.setDisable(false);
+                sendMessage.setDisable(false);
+                sendFile.setDisable(false);
                 serverAddress.setEditable(false);
                 portAddress.setEditable(false);
             }
