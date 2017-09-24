@@ -20,6 +20,7 @@ public class Server {
     private boolean keepGoing;
     public static int repeat;
 
+
     //public static ArrayList<Integer> loggedIn = new ArrayList<>();
 
 
@@ -28,7 +29,7 @@ public class Server {
         this.port = port;
         sdf = new SimpleDateFormat("HH:mm:ss");
         clientLists = new ArrayList<ClientThread>();
-        repeat = 0;
+        //repeat = 0;
     }
 
     public int getRepeat() {
@@ -47,13 +48,14 @@ public class Server {
                 display("Server waiting for Clients on port " + port + "\n");
                 repeat++;
                 //setRepeat(repeat);
-                System.out.println(repeat);
+                //System.out.println(repeat);
                 Socket socket = serverSocket.accept();
                 if(!keepGoing){
                     break;
                 }
                 ClientThread t = new ClientThread(socket);
                 display(t.username + " just connected");
+
                 clientLists.add(t);
                 System.out.println(clientLists.size());
                 t.start();
@@ -92,18 +94,23 @@ public class Server {
         sg.appendEvent(time + "\n");
     }
 
-    private synchronized void broadcast(String msg){
+    private synchronized void broadcast(String msg,String recipient){
         String time = sdf.format(new Date());
         String message = time + " " + msg + "\n";
         sg.appendChat(message);
 
         for (int i = clientLists.size(); --i>= 0;){
             ClientThread ct = clientLists.get(i);
-            if(!ct.writeMessage(message)){
-                clientLists.remove(i);
-                display("Disconnected client " + ct.username + "removed from list");
+            if(ct.username.equals(recipient)){
+                if(!ct.writeMessage(message)){
+                    clientLists.remove(i);
+                    display("Disconnected client " + ct.username + "removed from list");
+                }
             }
+
         }
+
+
     }
     synchronized void remove(int id){
         for(int i = 0; i < clientLists.size(); i++){
@@ -125,6 +132,7 @@ public class Server {
         ObjectOutputStream sOutput;
         int id;
         String username;
+        String recipient;
         Chatmessage cm;
         String date;
 
@@ -135,7 +143,6 @@ public class Server {
             try {
                 sOutput = new ObjectOutputStream(socket.getOutputStream());
                 sInput = new ObjectInputStream(socket.getInputStream());
-
                 username = (String)sInput.readObject();
 
             }catch (IOException e){
@@ -155,11 +162,11 @@ public class Server {
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
-
+                String recipient = cm.getRecipient();
                 String message = cm.getMessage();
                 switch (cm.getType()){
                     case Chatmessage.MESSAGE:
-                        broadcast(username + ": " + message);
+                        broadcast(username + ": " + message,recipient);
                         break;
                     case Chatmessage.LOGOUT:
                         display(username + "disconnected with a LOGOUT message");

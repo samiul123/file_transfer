@@ -36,7 +36,8 @@ public class Client {
             return false;
         }
         System.out.println(10);
-        String msg = "Connection accepted " + socket.getInetAddress() + ":" + socket.getPort();
+        String msg = "Connection accepted " + socket.getInetAddress() + ":" + socket.getPort() + "\n" +
+                "Username: " + username;
         display(msg);
 
         try{

@@ -13,13 +13,14 @@ import javafx.scene.input.InputEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class ClientGUI extends ServerGui implements EventHandler{
 
     private static final long serialVersionUID = 1L;
     private Label label;
-    private TextField tf;
+    private TextField tf,recipient;
     private TextField serverAddress, portAddress;
     private Button login, logout, whoIsIn, send;
     private TextArea ta;
@@ -28,7 +29,6 @@ public class ClientGUI extends ServerGui implements EventHandler{
     private int defaultPort = 1500;
     private String defaultHost = "localhost";
     Scene scene;
-    boolean found = false;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -49,15 +49,26 @@ public class ClientGUI extends ServerGui implements EventHandler{
         portAddress.setText(String.valueOf(defaultPort));
         hBox.getChildren().addAll(new Label("Server Address: "), serverAddress, new Label("Port: "), portAddress);
 
+        HBox hBoxUser = new HBox();
+        VBox vBoxUser = new VBox();
+        VBox vBoxRecipient = new VBox();
         label = new Label("Enter username: ");
-        GridPane.setConstraints(label, 0, 1);
+        //GridPane.setConstraints(label, 0, 1);
 
         tf = new TextField();
         tf.setPromptText("UserName");
-        GridPane.setConstraints(tf, 0, 2);
+        //GridPane.setConstraints(tf, 0, 2);
         ta = new TextArea();
-        GridPane.setConstraints(ta, 0, 3);
+        GridPane.setConstraints(ta, 0, 2);
 
+        vBoxUser.getChildren().addAll(label, tf);
+
+        Label label1 = new Label("Enter recipient name: ");
+        recipient = new TextField();
+        vBoxRecipient.getChildren().addAll(label1, recipient);
+
+        hBoxUser.getChildren().addAll(vBoxUser, vBoxRecipient);
+        GridPane.setConstraints(hBoxUser, 0, 1);
 
         HBox hBox1 = new HBox();
         login = new Button("Log In");
@@ -75,9 +86,9 @@ public class ClientGUI extends ServerGui implements EventHandler{
         send.addEventHandler(MouseEvent.MOUSE_CLICKED,this);
         send.setDisable(true);
         hBox1.getChildren().addAll(login, logout, whoIsIn,send);
-        GridPane.setConstraints(hBox1, 0,4);
+        GridPane.setConstraints(hBox1, 0,3);
 
-        gridPane.getChildren().addAll(hBox,label,tf,ta,hBox1);
+        gridPane.getChildren().addAll(hBox, hBoxUser,ta,hBox1);
         scene = new Scene(gridPane,500, 400);
 
         primaryStage.setScene(scene);
@@ -110,21 +121,23 @@ public class ClientGUI extends ServerGui implements EventHandler{
     public void handle(Event event) {
         Object o = event.getSource();
         if(o == logout){
-            client.sendMessage(new Chatmessage(Chatmessage.LOGOUT,""));
+            client.sendMessage(new Chatmessage(Chatmessage.LOGOUT,"",""));
         }
         if(o == whoIsIn){
-            client.sendMessage(new Chatmessage(Chatmessage.WHOISIN,""));
+            client.sendMessage(new Chatmessage(Chatmessage.WHOISIN,"",""));
         }
         if(connected && o == send){
-            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,tf.getText()));
+            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),recipient.getText()));
             tf.setText("");
         }
         if(o == login){
             String username = tf.getText().trim();
             //System.out.p
-            if(Server.repeat == 1){
+
                 System.out.println(1);
                 if(tf.getText().trim().length() == 0){
+
+
                     System.out.println(2);
                     return;
                 }
@@ -164,72 +177,6 @@ public class ClientGUI extends ServerGui implements EventHandler{
                 serverAddress.setEditable(false);
                 portAddress.setEditable(false);
             }
-            else{
-                System.out.println(Server.repeat);
-                for(int i = 0; i < Server.clientLists.size(); i++){
-                    Server.ClientThread ct = Server.clientLists.get(i);
-                    if(ct.username.equals(username)){
-                        Client.display(ct.username + " already logged in");
-                        tf.setText("");
-                        found = true;
-                    }
-                }
-                if(found){
-                    login.setDisable(false);
-                    logout.setDisable(true);
-                    whoIsIn.setDisable(true);
-                    send.setDisable(true);
-                    serverAddress.setEditable(true);
-                    portAddress.setEditable(true);
-
-                }
-                else{
-                    System.out.println(1);
-                    if(tf.getText().trim().length() == 0){
-                        System.out.println(2);
-                        return;
-                    }
-                    String server = serverAddress.getText().trim();
-                    System.out.println(3);
-                    if(server.length() == 0){
-                        System.out.println(4);
-                        return;
-                    }
-                    String portNumber = portAddress.getText().trim();
-                    System.out.println(5);
-                    if(portNumber.length() == 0){
-                        System.out.println(6);
-                        return;
-                    }
-                    int port = 0;
-                    try{
-                        System.out.println(7);
-                        port = Integer.parseInt(portNumber);
-                    }catch (Exception e){
-                        return;
-                    }
-                    client = new Client(server,port,username,this);
-                    System.out.println(8);
-                    if(!client.start()){
-                        System.out.println("client start");
-                        return;
-                    }
-                    tf.setText("");
-                    label.setText("Enter your message below: ");
-                    tf.setPromptText("message");
-                    connected = true;
-                    login.setDisable(true);
-                    logout.setDisable(false);
-                    whoIsIn.setDisable(false);
-                    send.setDisable(false);
-                    serverAddress.setEditable(false);
-                    portAddress.setEditable(false);
-
-                }
-
-            }
-
-            //tf.addEventHandler(InputEvent.ANY,this);
-        }
+        //tf.addEventHandler(InputEvent.ANY,this);
     }
 }
