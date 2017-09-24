@@ -1,8 +1,6 @@
 package sample;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
@@ -18,7 +16,7 @@ public class Server {
     private SimpleDateFormat sdf;
     private int port;
     private boolean keepGoing;
-    public static int repeat;
+    public static int buffer_size = 100;
 
 
     //public static ArrayList<Integer> loggedIn = new ArrayList<>();
@@ -32,13 +30,6 @@ public class Server {
         //repeat = 0;
     }
 
-    public int getRepeat() {
-        return repeat;
-    }
-
-    public void setRepeat(int repeat) {
-        this.repeat = repeat;
-    }
 
     public void start(){
         keepGoing = true;
@@ -46,9 +37,6 @@ public class Server {
             ServerSocket serverSocket = new ServerSocket(port);
             while (keepGoing){
                 display("Server waiting for Clients on port " + port + "\n");
-                repeat++;
-                //setRepeat(repeat);
-                //System.out.println(repeat);
                 Socket socket = serverSocket.accept();
                 if(!keepGoing){
                     break;
@@ -110,8 +98,25 @@ public class Server {
 
         }
 
+    }
+    private synchronized void sendFile(String recipient) throws IOException, ClassNotFoundException {
+        String time = sdf.format(new Date());
+        String message = time + " sending file to " + recipient + "\n";
+        sg.appendChat(message);
+
+        for (int i = clientLists.size(); --i>= 0;){
+            ClientThread ct = clientLists.get(i);
+            if(ct.username.equals(recipient)){
+                System.out.println("recipient: " + recipient);
+                if(!ct.saveFile()){
+                    clientLists.remove(i);
+                    display("Disconnected client " + ct.username + "removed from list");
+                }
+            }
+        }
 
     }
+
     synchronized void remove(int id){
         for(int i = 0; i < clientLists.size(); i++){
             ClientThread ct = clientLists.get(i);
@@ -130,6 +135,7 @@ public class Server {
         Socket socket;
         ObjectInputStream sInput;
         ObjectOutputStream sOutput;
+        FileOutputStream fOut;
         int id;
         String username;
         Chatmessage cm;
@@ -143,7 +149,7 @@ public class Server {
                 sOutput = new ObjectOutputStream(socket.getOutputStream());
                 sInput = new ObjectInputStream(socket.getInputStream());
                 username = (String)sInput.readObject();
-
+                fOut = new FileOutputStream("received.txt");
             }catch (IOException e){
                 display("Exception creating new I/O stream");
             }catch (ClassNotFoundException e){
@@ -165,6 +171,17 @@ public class Server {
                 String message = cm.getMessage();
                 String fileName = cm.getFileName();
                 switch (cm.getType()){
+                    case Chatmessage.FILE:
+                        try {
+                            //saveFile();
+                            sendFile(recipient);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                        System.out.println("1");
+                        break;
                     case Chatmessage.MESSAGE:
                         broadcast(username + ": " + message + fileName,recipient);
                         break;
@@ -200,11 +217,50 @@ public class Server {
             }
             try {
                 sOutput.writeObject(msg);
+
             } catch (IOException e) {
                 display("Error sending message to " + username);
                 e.printStackTrace();
             }
             return true;
         }
+        private boolean saveFile() throws IOException, ClassNotFoundException {
+            System.out.println("in save file\n");
+            byte[] buffer = new byte[buffer_size];
+            Integer bytesRead = 0;
+            Object o;
+            do {
+                System.out.println("in loop\n");
+                System.out.println(sInput.readObject());
+                o = sInput.readObject();
+                System.out.println("1");
+                if (!(o instanceof Integer)) {
+                    display("Something is wrong");
+                    return false;
+                }
+
+                bytesRead = (Integer)o;
+                System.out.println("2");
+
+                o = sInput.readObject();
+                System.out.println("3");
+
+                if (!(o instanceof byte[])) {
+                    display("Something is wrong");
+                    return false;
+                }
+
+                buffer = (byte[])o;
+                System.out.println("4");
+
+                // 3. Write data to output file.
+                fOut.write(buffer, 0, bytesRead);
+                System.out.println("5");
+            } while (bytesRead == buffer_size);
+
+            display("Received file from " + username + "\n");
+            return true;
+        }
+
     }
 }

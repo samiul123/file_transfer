@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 public class Chatmessage implements Serializable{
     protected static final long serialVersionUID = 1L;
-    static final int WHOISIN = 0, MESSAGE = 1, LOGOUT = 2;
+    static final int WHOISIN = 0, MESSAGE = 1, LOGOUT = 2, FILE = 3;
     private int type;
     private String message;
     private String recipient;

@@ -145,9 +145,9 @@ public class ClientGUI extends ServerGui implements EventHandler{
             tf.setText("");
         }
         if(connected && o == sendFile){
-            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,"",recipient.getText(),fileText.getText()));
+            client.sendMessage(new Chatmessage(Chatmessage.FILE,"",recipient.getText(),fileText.getText()));
             fileText.setText("");
-
+            recipient.setText("");
         }
         if(o == login){
             String username = tf.getText().trim();

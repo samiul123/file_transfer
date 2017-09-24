@@ -1,17 +1,17 @@
 package sample;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 
 
 public class Client {
     private ObjectInputStream sInput;
     private ObjectOutputStream sOutput;
+    private FileInputStream fInput;
     private Socket socket;
+    //private DataOutputStream dOut;
 
     private static ClientGUI cg;
     private String server;
@@ -65,7 +65,17 @@ public class Client {
     }
     void sendMessage(Chatmessage msg){
         try{
+            File file = new File(msg.getFileName());
             sOutput.writeObject(msg);
+            fInput = new FileInputStream(file);
+            byte [] buffer = new byte[Server.buffer_size];
+            Integer bytesRead = 0;
+            display(username + " sending file to server\n");
+            while ((bytesRead = fInput.read(buffer)) > 0) {
+                sOutput.writeObject(bytesRead);
+                sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
+            }
+            display("File sent\n");
         } catch (IOException e) {
             display("Exception writing to server");
             e.printStackTrace();
