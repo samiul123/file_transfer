@@ -9,12 +9,19 @@ public class Chatmessage implements Serializable{
     private String message;
     private String recipient;
     private String fileName;
+    //private Integer fileId = 0;
     Chatmessage(int type, String message, String recipient,String fileName){
         this.type = type;
         this.message = message;
         this.recipient = recipient;
         this.fileName = fileName;
+        //++fileId;
+
     }
+
+    /*public int getFileId() {
+        return fileId;
+    }*/
 
     public String getFileName() {
         return fileName;

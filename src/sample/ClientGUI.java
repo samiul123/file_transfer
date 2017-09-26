@@ -133,6 +133,7 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
     @Override
     public void handle(Event event) {
+
         Object o = event.getSource();
         if(o == logout){
             client.sendMessage(new Chatmessage(Chatmessage.LOGOUT,"","",""));
@@ -141,7 +142,7 @@ public class ClientGUI extends ServerGui implements EventHandler{
             client.sendMessage(new Chatmessage(Chatmessage.WHOISIN,"","",""));
         }
         if(connected && o == sendMessage){
-            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),recipient.getText(),""));
+            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),recipient.getText(),fileText.getText()));
             tf.setText("");
         }
         if(connected && o == sendFile){

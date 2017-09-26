@@ -3,6 +3,7 @@ package sample;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -10,7 +11,7 @@ import java.util.SimpleTimeZone;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Server {
-    private static int uniqueID;
+    public static int uniqueID = 0;
     public static ArrayList<ClientThread> clientLists;
     private ServerGui sg;
     private SimpleDateFormat sdf;
@@ -85,7 +86,7 @@ public class Server {
     private synchronized void broadcast(String msg,String recipient){
         String time = sdf.format(new Date());
         String message = time + " " + msg + "\n";
-        sg.appendChat(message);
+
 
         for (int i = clientLists.size(); --i>= 0;){
             ClientThread ct = clientLists.get(i);
@@ -94,26 +95,28 @@ public class Server {
                     clientLists.remove(i);
                     display("Disconnected client " + ct.username + "removed from list");
                 }
+                else sg.appendChat(message);
             }
 
         }
 
     }
-    private synchronized void sendFile(String recipient) throws IOException, ClassNotFoundException {
+    private synchronized void sendFile(String recipient,String fileN) throws IOException, ClassNotFoundException {
         String time = sdf.format(new Date());
         String message = time + " sending file to " + recipient + "\n";
-        sg.appendChat(message);
+        sg.appendEvent(message);
 
         for (int i = clientLists.size(); --i>= 0;){
             ClientThread ct = clientLists.get(i);
             if(ct.username.equals(recipient)){
                 System.out.println("recipient: " + recipient);
-                if(!ct.saveFile()){
+                if(!ct.writeFile(new File(fileN))){
                     clientLists.remove(i);
                     display("Disconnected client " + ct.username + "removed from list");
                 }
             }
         }
+        sg.appendEvent("File sent to " + recipient);
 
     }
 
@@ -144,12 +147,14 @@ public class Server {
         ClientThread(Socket socket){
             id = ++uniqueID;
             this.socket = socket;
+            System.out.println("unique id: " + id);
             System.out.println("Thread trying to create Object I/O stream");
             try {
                 sOutput = new ObjectOutputStream(socket.getOutputStream());
                 sInput = new ObjectInputStream(socket.getInputStream());
                 username = (String)sInput.readObject();
-                fOut = new FileOutputStream("received.txt");
+                fOut = new FileOutputStream(new File("D:/Idea_projects/file_transfer-master/" +
+                        "file_transfer-master/server_storage/received" + id + ".txt"));
             }catch (IOException e){
                 display("Exception creating new I/O stream");
             }catch (ClassNotFoundException e){
@@ -173,8 +178,9 @@ public class Server {
                 switch (cm.getType()){
                     case Chatmessage.FILE:
                         try {
-                            //saveFile();
-                            sendFile(recipient);
+                            saveFile();
+                            //sendFile(recipient);
+                            sendFile(recipient, fileName);
                         } catch (IOException e) {
                             e.printStackTrace();
                         } catch (ClassNotFoundException e) {
@@ -183,7 +189,7 @@ public class Server {
                         System.out.println("1");
                         break;
                     case Chatmessage.MESSAGE:
-                        broadcast(username + ": " + message + fileName,recipient);
+                        broadcast(username + ": " + message, recipient);
                         break;
                     case Chatmessage.LOGOUT:
                         display(username + "disconnected with a LOGOUT message");
@@ -216,10 +222,26 @@ public class Server {
                 return false;
             }
             try {
-                sOutput.writeObject(msg);
 
+                sOutput.writeObject(msg);
             } catch (IOException e) {
                 display("Error sending message to " + username);
+                e.printStackTrace();
+            }
+            return true;
+        }
+
+        private boolean writeFile(File fileN){
+            if(!socket.isConnected()){
+                close();
+                return false;
+            }
+            try {
+                System.out.println("Content writing");
+                byte[] content = Files.readAllBytes(fileN.toPath());
+                sOutput.writeObject(content);
+                System.out.println("content written");
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             return true;
@@ -229,24 +251,31 @@ public class Server {
             byte[] buffer = new byte[buffer_size];
             Integer bytesRead = 0;
             Object o;
+            /*o = sInput.readObject();
+            if(o instanceof Integer){
+                System.out.println("file id: " + o.toString());
+            }*/
             do {
                 System.out.println("in loop\n");
-                System.out.println(sInput.readObject());
+                //System.out.println(sInput.readObject());
+
                 o = sInput.readObject();
                 System.out.println("1");
+                System.out.println(o.getClass());
                 if (!(o instanceof Integer)) {
-                    display("Something is wrong");
-                    return false;
+                    display("Something is wrong 1");
+                    //return false;
                 }
 
                 bytesRead = (Integer)o;
+
                 System.out.println("2");
 
                 o = sInput.readObject();
                 System.out.println("3");
 
                 if (!(o instanceof byte[])) {
-                    display("Something is wrong");
+                    display("Something is wrong 2");
                     return false;
                 }
 

@@ -3,6 +3,7 @@ package sample;
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.util.Arrays;
 
 
@@ -65,17 +66,28 @@ public class Client {
     }
     void sendMessage(Chatmessage msg){
         try{
-            File file = new File(msg.getFileName());
-            sOutput.writeObject(msg);
-            fInput = new FileInputStream(file);
-            byte [] buffer = new byte[Server.buffer_size];
-            Integer bytesRead = 0;
-            display(username + " sending file to server\n");
-            while ((bytesRead = fInput.read(buffer)) > 0) {
-                sOutput.writeObject(bytesRead);
-                sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
+            switch (msg.getType()){
+
+                case Chatmessage.FILE:
+                    File file = new File(msg.getFileName());
+                    sOutput.writeObject(msg);
+                    //int fileId = msg.getFileId();
+                    //sOutput.writeObject(fileId);
+                    fInput = new FileInputStream(file);
+                    byte [] buffer = new byte[Server.buffer_size];
+                    Integer bytesRead = 0;
+                    display(username + " sending file to server\n");
+                    while ((bytesRead = fInput.read(buffer)) > 0) {
+                        sOutput.writeObject(bytesRead);
+                        sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
+                    }
+                    display("File sent\n");
+                    break;
+                case Chatmessage.MESSAGE:
+                    sOutput.writeObject(msg);
+                    break;
             }
-            display("File sent\n");
+
         } catch (IOException e) {
             display("Exception writing to server");
             e.printStackTrace();
@@ -107,9 +119,16 @@ public class Client {
         public void run(){
             while (true){
                 try{
-                    String msg = (String)sInput.readObject();
+
+                    /*String msg = (String)sInput.readObject();
                     cg.append(msg);
-                    System.out.println(msg);
+                    System.out.println(msg);*/
+                    System.out.println("byte instance");
+                    File file = new File("rce.txt");
+                    byte[] content = (byte[])sInput.readObject();
+                    Files.write(file.toPath(),content);
+                    cg.append("Received file ..\n");
+
                 } catch (IOException e) {
                     display("Server has closed the connection: " + e);
                     e.printStackTrace();
