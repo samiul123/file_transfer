@@ -20,9 +20,10 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
     private static final long serialVersionUID = 1L;
     private Label label;
-    private TextField tf,recipient,fileText;
+    private TextField tf,recipient,fileText,sizeText,serverText;
     private TextField serverAddress, portAddress;
-    private Button login, logout, whoIsIn, sendMessage, sendFile;
+    private Button login, logout, whoIsIn, sendMessage, sendFile, sendMessageToServer;
+    public static Button confirm;
     private TextArea ta;
     private boolean connected;
     private Client client;
@@ -75,8 +76,23 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
         VBox fileVBox = new VBox();
         fileVBox.getChildren().addAll(fileLabel, fileText);
-        hBoxUser.getChildren().addAll(vBoxUser, vBoxRecipient, fileVBox);
+
+        VBox fileSizeVbox = new VBox();
+        Label sizeLabel = new Label("Enter file size: ");
+        sizeText = new TextField();
+        sizeText.setPromptText("File size");
+        fileSizeVbox.getChildren().addAll(sizeLabel, sizeText);
+
+        VBox messageToserver = new VBox();
+        Label serverMessage = new Label("Enter message to server");
+        serverText = new TextField();
+        serverText.setPromptText("Message for sever only");
+        messageToserver.getChildren().addAll(serverMessage,serverText);
+
+        hBoxUser.getChildren().addAll(vBoxUser, vBoxRecipient, fileVBox, fileSizeVbox,messageToserver);
         GridPane.setConstraints(hBoxUser, 0, 1);
+
+
 
         HBox hBox1 = new HBox();
         login = new Button("Log In");
@@ -98,11 +114,19 @@ public class ClientGUI extends ServerGui implements EventHandler{
         sendFile.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
         sendFile.setDisable(true);
 
-        hBox1.getChildren().addAll(login, logout, whoIsIn,sendMessage, sendFile);
+        sendMessageToServer = new Button("Send message to server");
+        sendMessageToServer.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
+        sendMessageToServer.setDisable(true);
+
+        confirm = new Button("Confirm");
+        confirm.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
+        confirm.setDisable(true);
+
+        hBox1.getChildren().addAll(login, logout, whoIsIn,sendMessage, sendFile,sendMessageToServer,confirm);
         GridPane.setConstraints(hBox1, 0,3);
 
         gridPane.getChildren().addAll(hBox, hBoxUser,ta,hBox1);
-        scene = new Scene(gridPane,500, 400);
+        scene = new Scene(gridPane,700, 400);
 
         primaryStage.setScene(scene);
         primaryStage.show();
@@ -136,19 +160,34 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
         Object o = event.getSource();
         if(o == logout){
-            client.sendMessage(new Chatmessage(Chatmessage.LOGOUT,"","",""));
+            client.sendMessage(new Chatmessage(Chatmessage.LOGOUT,"","","","",""));
         }
         if(o == whoIsIn){
-            client.sendMessage(new Chatmessage(Chatmessage.WHOISIN,"","",""));
+            client.sendMessage(new Chatmessage(Chatmessage.WHOISIN,"","","","",""));
         }
         if(connected && o == sendMessage){
-            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),recipient.getText(),fileText.getText()));
+            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),recipient.getText(),fileText.getText(),"",""));
             tf.setText("");
         }
         if(connected && o == sendFile){
-            client.sendMessage(new Chatmessage(Chatmessage.FILE,"",recipient.getText(),fileText.getText()));
+            client.sendMessage(new Chatmessage(Chatmessage.FILE,"",recipient.getText(),
+                    fileText.getText(),sizeText.getText(),serverText.getText()));
             fileText.setText("");
             recipient.setText("");
+            sizeText.setText("");
+            //sendMessageToServer.setDisable(false);
+        }
+        if(connected && o == sendMessageToServer){
+            client.sendMessage(new Chatmessage(Chatmessage.CLIENTSERVERONLY,"",recipient.getText(),
+                    fileText.getText(), sizeText.getText(),""));
+            tf.setText("");
+            sendFile.setDisable(false);
+        }
+
+        if(connected && o == confirm){
+            client.sendMessage(new Chatmessage(Chatmessage.CONFIRM,"","","",
+                    "",serverText.getText()));
+            serverText.setText("");
         }
         if(o == login){
             String username = tf.getText().trim();
@@ -194,7 +233,9 @@ public class ClientGUI extends ServerGui implements EventHandler{
                 logout.setDisable(false);
                 whoIsIn.setDisable(false);
                 sendMessage.setDisable(false);
-                sendFile.setDisable(false);
+                //sendFile.setDisable(false);
+                confirm.setDisable(false);
+                sendMessageToServer.setDisable(false);
                 serverAddress.setEditable(false);
                 portAddress.setEditable(false);
             }

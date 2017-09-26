@@ -67,12 +67,11 @@ public class Client {
     void sendMessage(Chatmessage msg){
         try{
             switch (msg.getType()){
-
                 case Chatmessage.FILE:
-                    File file = new File(msg.getFileName());
                     sOutput.writeObject(msg);
                     //int fileId = msg.getFileId();
                     //sOutput.writeObject(fileId);
+                    File file = new File(msg.getFileName());
                     fInput = new FileInputStream(file);
                     byte [] buffer = new byte[Server.buffer_size];
                     Integer bytesRead = 0;
@@ -84,6 +83,12 @@ public class Client {
                     display("File sent\n");
                     break;
                 case Chatmessage.MESSAGE:
+                    sOutput.writeObject(msg);
+                    break;
+                case Chatmessage.CLIENTSERVERONLY:
+                    sOutput.writeObject(msg);
+                    break;
+                case Chatmessage.CONFIRM:
                     sOutput.writeObject(msg);
                     break;
             }
@@ -119,15 +124,22 @@ public class Client {
         public void run(){
             while (true){
                 try{
-
                     /*String msg = (String)sInput.readObject();
                     cg.append(msg);
                     System.out.println(msg);*/
+                    Object o = sInput.readObject();
                     System.out.println("byte instance");
-                    File file = new File("rce.txt");
-                    byte[] content = (byte[])sInput.readObject();
-                    Files.write(file.toPath(),content);
-                    cg.append("Received file ..\n");
+                    if(o instanceof String){
+                        String serverMSg = (String)o;
+                        cg.append(serverMSg);
+                    }
+                    else{
+                        File file = new File("rce.txt");
+                        byte[] content = (byte[])o;
+                        Files.write(file.toPath(),content);
+                        cg.append("Received file ..\n");
+                    }
+
 
                 } catch (IOException e) {
                     display("Server has closed the connection: " + e);

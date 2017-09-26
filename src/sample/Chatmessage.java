@@ -4,25 +4,36 @@ import java.io.Serializable;
 
 public class Chatmessage implements Serializable{
     protected static final long serialVersionUID = 1L;
-    static final int WHOISIN = 0, MESSAGE = 1, LOGOUT = 2, FILE = 3;
+    static final int WHOISIN = 0, MESSAGE = 1, LOGOUT = 2, FILE = 3,CLIENTSERVERONLY = 4,CONFIRM = 5;
     private int type;
     private String message;
     private String recipient;
     private String fileName;
-    //private Integer fileId = 0;
-    Chatmessage(int type, String message, String recipient,String fileName){
+    private String fileSize;
+    private String serverMessage;
+    public  int fileId;
+    Chatmessage(int type, String message, String recipient,String fileName,String fileSize,String serverMessage){
         this.type = type;
         this.message = message;
         this.recipient = recipient;
         this.fileName = fileName;
+        this.fileSize = fileSize;
+        this.serverMessage = serverMessage;
         //++fileId;
 
     }
 
-    /*public int getFileId() {
+    public String getServerMessage() {
+        return serverMessage;
+    }
+
+    public String getFileSize() {
+        return fileSize;
+    }
+
+    /*public Integer getFileId() {
         return fileId;
     }*/
-
     public String getFileName() {
         return fileName;
     }

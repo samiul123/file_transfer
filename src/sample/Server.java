@@ -13,6 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Server {
     public static int uniqueID = 0;
     public static ArrayList<ClientThread> clientLists;
+    public static ArrayList<Info> infoObjects;
+    public static int idRun = 1;
     private ServerGui sg;
     private SimpleDateFormat sdf;
     private int port;
@@ -28,6 +30,7 @@ public class Server {
         this.port = port;
         sdf = new SimpleDateFormat("HH:mm:ss");
         clientLists = new ArrayList<ClientThread>();
+        infoObjects = new ArrayList<>();
         //repeat = 0;
     }
 
@@ -90,6 +93,7 @@ public class Server {
 
         for (int i = clientLists.size(); --i>= 0;){
             ClientThread ct = clientLists.get(i);
+            System.out.println("broadcast: " + ct.username);
             if(ct.username.equals(recipient)){
                 if(!ct.writeMessage(message)){
                     clientLists.remove(i);
@@ -101,6 +105,7 @@ public class Server {
         }
 
     }
+
     private synchronized void sendFile(String recipient,String fileN) throws IOException, ClassNotFoundException {
         String time = sdf.format(new Date());
         String message = time + " sending file to " + recipient + "\n";
@@ -116,7 +121,7 @@ public class Server {
                 }
             }
         }
-        sg.appendEvent("File sent to " + recipient);
+        sg.appendEvent("File sent to " + recipient + "\n");
 
     }
 
@@ -143,6 +148,7 @@ public class Server {
         String username;
         Chatmessage cm;
         String date;
+        //ArrayList<Info> infoObjects;
 
         ClientThread(Socket socket){
             id = ++uniqueID;
@@ -155,6 +161,7 @@ public class Server {
                 username = (String)sInput.readObject();
                 fOut = new FileOutputStream(new File("D:/Idea_projects/file_transfer-master/" +
                         "file_transfer-master/server_storage/received" + id + ".txt"));
+                //infoObjects = new ArrayList<>();
             }catch (IOException e){
                 display("Exception creating new I/O stream");
             }catch (ClassNotFoundException e){
@@ -164,6 +171,7 @@ public class Server {
         }
         public void run(){
             boolean keepgoing = true;
+
             while (keepgoing){
                 try {
                     cm = (Chatmessage) sInput.readObject();
@@ -172,12 +180,18 @@ public class Server {
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
-                String recipient = cm.getRecipient();
+                /*String recipient = cm.getRecipient();
                 String message = cm.getMessage();
                 String fileName = cm.getFileName();
-                switch (cm.getType()){
-                    case Chatmessage.FILE:
+                String filseSize = cm.getFileSize();
+                Double requiredChunk = Math.ceil(Double.valueOf(filseSize)/(double) buffer_size);*/
+
+                /*switch (cm.getType()){
+                    case Chatmessage.FILE || Chatmessage.CLIENTSERVERONLY:
                         try {
+                            //Integer fileId = cm.getFileId();
+                            writeMessage("Server can store " + requiredChunk + " chunks\n");
+
                             saveFile();
                             //sendFile(recipient);
                             sendFile(recipient, fileName);
@@ -202,6 +216,101 @@ public class Server {
                             writeMessage((i + 1) + ": " + ct.username + " since " + ct.date);
                         }
                         break;
+                }*/
+                int type = cm.getType();
+                if(type == Chatmessage.FILE || type == Chatmessage.CLIENTSERVERONLY || type == Chatmessage.CONFIRM){
+                    Info info;
+                    if(type == Chatmessage.CLIENTSERVERONLY){
+                        cm.fileId = idRun;
+                        idRun++;
+                        String recipient = cm.getRecipient();
+                        //String message = cm.getMessage();
+                        int fileId = cm.fileId;
+                        System.out.println("File id: " + fileId);
+                        String fileName = cm.getFileName();
+                        String filseSize = cm.getFileSize();
+                        info = new Info(recipient,fileName,fileId);
+                        infoObjects.add(info);
+                        //System.out.println(infoObjects);
+                        Double requiredChunk = Math.ceil(Double.valueOf(filseSize)/(double) buffer_size);
+                        writeMessage("Server can store " + requiredChunk + " chunks\n" +
+                        "Please write 'Yes' or 'No'\n");
+                    }
+                    else if(type == Chatmessage.FILE){
+                        String fromClient;
+                        try {
+                            fromClient = cm.getServerMessage();
+                            if(fromClient.equals("yes")){
+                                saveFile();
+                                System.out.println("info objects size: " + infoObjects.size());
+                                for(int i = 0; i < infoObjects.size(); i++){
+                                    Info info1 = infoObjects.get(i);
+                                    System.out.println("IdRun: " + idRun);
+                                    System.out.println("getFieldId: " + info1.getFileId());
+                                    if(info1.getFileId() == idRun - 1){
+                                        //sendFile(info1.getRecipient(),info1.getFileName());
+                                        System.out.println("in File");
+                                        broadcast("Please write 'yes' or 'no' and click" +
+                                                " 'confirm' button below\n",info1.getRecipient());
+                                        //ClientGUI.confirm.setDisable(false);
+                                    }
+                                }
+                                //sendFile(recipient, fileName);
+                            }
+                            else{
+                                close();
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } catch (ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    else{
+                        String fromReceiver;
+                        fromReceiver = cm.getServerMessage();
+                        System.out.println(fromReceiver);
+                        if(fromReceiver.equals("yes")){
+                            System.out.println(idRun);
+                            System.out.println(infoObjects.size());
+                            for(int i = 0; i < infoObjects.size(); i++){
+                                Info info1 = infoObjects.get(i);
+                                System.out.println(info1.getRecipient());
+                                System.out.println(idRun);
+                                if(info1.getFileId() == idRun - 1){
+                                    System.out.println(idRun);
+                                    try {
+                                        System.out.println(info1.getRecipient());
+                                        sendFile(info1.getRecipient(),info1.getFileName());
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    } catch (ClassNotFoundException e) {
+                                        e.printStackTrace();
+                                    }
+                                    //broadcast(info1.getRecipient(),info1.getFileName());
+                                }
+                            }
+                        }
+                        else {
+                            close();
+                        }
+                    }
+                }
+                if(type == Chatmessage.MESSAGE){
+                    String recipient = cm.getRecipient();
+                    String message = cm.getMessage();
+                    broadcast(username + ": " + message, recipient);
+                }
+                if(type == Chatmessage.LOGOUT){
+                    display(username + "disconnected with a LOGOUT message");
+                    keepgoing = false;
+                }
+                if(type == Chatmessage.WHOISIN){
+                    writeMessage("List of the users connected at " + sdf.format(new Date()) + "\n");
+                    for (int i = 0; i < clientLists.size(); i++){
+                        ClientThread ct = clientLists.get(i);
+                        writeMessage((i + 1) + ": " + ct.username + " since " + ct.date);
+                    }
                 }
             }
             remove(id);
@@ -222,7 +331,6 @@ public class Server {
                 return false;
             }
             try {
-
                 sOutput.writeObject(msg);
             } catch (IOException e) {
                 display("Error sending message to " + username);
@@ -237,6 +345,8 @@ public class Server {
                 return false;
             }
             try {
+                //sOutput.writeObject(fileId);
+                //sOutput.writeObject(fileN.getName());
                 System.out.println("Content writing");
                 byte[] content = Files.readAllBytes(fileN.toPath());
                 sOutput.writeObject(content);
@@ -264,7 +374,7 @@ public class Server {
                 System.out.println(o.getClass());
                 if (!(o instanceof Integer)) {
                     display("Something is wrong 1");
-                    //return false;
+                    return false;
                 }
 
                 bytesRead = (Integer)o;
