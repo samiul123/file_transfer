@@ -20,6 +20,9 @@ public class Server {
     private int port;
     private boolean keepGoing;
     public static int buffer_size = 100;
+    public static int chunkNumber = 100;
+    public static int remainingChunkNumber;
+    public static String acknowledgement = "Server has downloaded 1 chunk\n";
 
 
     //public static ArrayList<Integer> loggedIn = new ArrayList<>();
@@ -105,6 +108,24 @@ public class Server {
         }
 
     }
+    private synchronized void broadcastServer(String msg,String recipient){
+        String time = sdf.format(new Date());
+        String message = time + " " + msg + "\n";
+
+
+        for (int i = clientLists.size(); --i>= 0;){
+            ClientThread ct = clientLists.get(i);
+            System.out.println("broadcast: " + ct.username);
+            if(ct.username.equals(recipient)){
+                if(!ct.writeMessage(message)){
+                    clientLists.remove(i);
+                    display("Disconnected client " + ct.username + "removed from list");
+                }
+            }
+
+        }
+
+    }
 
     private synchronized void sendFile(String recipient,String fileN) throws IOException, ClassNotFoundException {
         String time = sdf.format(new Date());
@@ -121,7 +142,7 @@ public class Server {
                 }
             }
         }
-        sg.appendEvent("File sent to " + recipient + "\n");
+        sg.appendEvent(time +" file sent to " + recipient + "\n");
 
     }
 
@@ -180,61 +201,48 @@ public class Server {
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
-                /*String recipient = cm.getRecipient();
-                String message = cm.getMessage();
-                String fileName = cm.getFileName();
-                String filseSize = cm.getFileSize();
-                Double requiredChunk = Math.ceil(Double.valueOf(filseSize)/(double) buffer_size);*/
-
-                /*switch (cm.getType()){
-                    case Chatmessage.FILE || Chatmessage.CLIENTSERVERONLY:
-                        try {
-                            //Integer fileId = cm.getFileId();
-                            writeMessage("Server can store " + requiredChunk + " chunks\n");
-
-                            saveFile();
-                            //sendFile(recipient);
-                            sendFile(recipient, fileName);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        } catch (ClassNotFoundException e) {
-                            e.printStackTrace();
-                        }
-                        System.out.println("1");
-                        break;
-                    case Chatmessage.MESSAGE:
-                        broadcast(username + ": " + message, recipient);
-                        break;
-                    case Chatmessage.LOGOUT:
-                        display(username + "disconnected with a LOGOUT message");
-                        keepgoing = false;
-                        break;
-                    case Chatmessage.WHOISIN:
-                        writeMessage("List of the users connected at " + sdf.format(new Date()) + "\n");
-                        for (int i = 0; i < clientLists.size(); i++){
-                            ClientThread ct = clientLists.get(i);
-                            writeMessage((i + 1) + ": " + ct.username + " since " + ct.date);
-                        }
-                        break;
-                }*/
                 int type = cm.getType();
                 if(type == Chatmessage.FILE || type == Chatmessage.CLIENTSERVERONLY || type == Chatmessage.CONFIRM){
                     Info info;
                     if(type == Chatmessage.CLIENTSERVERONLY){
                         cm.fileId = idRun;
                         idRun++;
+                        int found = 0;
                         String recipient = cm.getRecipient();
-                        //String message = cm.getMessage();
                         int fileId = cm.fileId;
                         System.out.println("File id: " + fileId);
                         String fileName = cm.getFileName();
                         String filseSize = cm.getFileSize();
-                        info = new Info(recipient,fileName,fileId);
-                        infoObjects.add(info);
-                        //System.out.println(infoObjects);
+                        Server.remainingChunkNumber = Server.chunkNumber;
+                        System.out.println("remaining chunk: " + Server.remainingChunkNumber);
+                        System.out.println("chunk number: " + Server.chunkNumber);
                         Double requiredChunk = Math.ceil(Double.valueOf(filseSize)/(double) buffer_size);
-                        writeMessage("Server can store " + requiredChunk + " chunks\n" +
-                        "Please write 'Yes' or 'No'\n");
+
+                        for(int i = 0; i < clientLists.size(); i++){
+                            ClientThread ct = clientLists.get(i);
+                            if(ct.username.equals(recipient)){
+                                found = 1;
+                                break;
+                            }
+                        }
+                        if(found == 1){
+                            info = new Info(recipient,fileName,fileId);
+                            infoObjects.add(info);
+                            if(requiredChunk <= (double) chunkNumber){
+                                writeMessage("FROM SERVER:Server can store " + requiredChunk + " chunks\n" +
+                                        "Please write 'Yes' or 'No'\n");
+                            }
+                            else {
+                                writeMessage("FROM SERVER:Server can not store " + requiredChunk + " chunks\n");
+                            }
+
+                        }
+                        else{
+                            writeMessage(recipient + " not connected\n");
+                        }
+
+                        //System.out.println(infoObjects);
+
                     }
                     else if(type == Chatmessage.FILE){
                         String fromClient;
@@ -250,9 +258,8 @@ public class Server {
                                     if(info1.getFileId() == idRun - 1){
                                         //sendFile(info1.getRecipient(),info1.getFileName());
                                         System.out.println("in File");
-                                        broadcast("Please write 'yes' or 'no' and click" +
+                                        broadcastServer("Please write 'yes' or 'no' and click" +
                                                 " 'confirm' button below\n",info1.getRecipient());
-                                        //ClientGUI.confirm.setDisable(false);
                                     }
                                 }
                                 //sendFile(recipient, fileName);
@@ -278,6 +285,7 @@ public class Server {
                                 System.out.println(info1.getRecipient());
                                 System.out.println(idRun);
                                 if(info1.getFileId() == idRun - 1){
+
                                     System.out.println(idRun);
                                     try {
                                         System.out.println(info1.getRecipient());
@@ -379,6 +387,8 @@ public class Server {
 
                 bytesRead = (Integer)o;
 
+                Server.chunkNumber -= (bytesRead/Server.buffer_size);
+
                 System.out.println("2");
 
                 o = sInput.readObject();
@@ -395,6 +405,8 @@ public class Server {
                 // 3. Write data to output file.
                 fOut.write(buffer, 0, bytesRead);
                 System.out.println("5");
+
+                //writeMessage();
             } while (bytesRead == buffer_size);
 
             display("Received file from " + username + "\n");

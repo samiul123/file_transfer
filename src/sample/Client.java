@@ -18,6 +18,7 @@ public class Client {
     private String server;
     private String username;
     private int port;
+    Integer bytesRead = 0;
 
     Client(String server, int port, String username, ClientGUI cg){
         this.server = server;
@@ -74,12 +75,18 @@ public class Client {
                     File file = new File(msg.getFileName());
                     fInput = new FileInputStream(file);
                     byte [] buffer = new byte[Server.buffer_size];
-                    Integer bytesRead = 0;
+
                     display(username + " sending file to server\n");
                     while ((bytesRead = fInput.read(buffer)) > 0) {
                         sOutput.writeObject(bytesRead);
+                        //System.out.println("Server chunk number: " + Server.chunkNumber);
                         sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
                     }
+                    /*if((bytesRead = fInput.read(buffer)) > 0) {
+                        sOutput.writeObject(bytesRead);
+                        //System.out.println("Server chunk number: " + Server.chunkNumber);
+                        sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
+                    }*/
                     display("File sent\n");
                     break;
                 case Chatmessage.MESSAGE:

@@ -30,7 +30,7 @@ public class ClientGUI extends ServerGui implements EventHandler{
     private int defaultPort = 1500;
     private String defaultHost = "localhost";
     Scene scene;
-    int fileName;
+
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -110,11 +110,11 @@ public class ClientGUI extends ServerGui implements EventHandler{
         sendMessage.addEventHandler(MouseEvent.MOUSE_CLICKED,this);
         sendMessage.setDisable(true);
 
-        sendFile = new Button("Send file");
+        sendFile = new Button("Send file to client");
         sendFile.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
         sendFile.setDisable(true);
 
-        sendMessageToServer = new Button("Send message to server");
+        sendMessageToServer = new Button("Send file to server");
         sendMessageToServer.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
         sendMessageToServer.setDisable(true);
 
