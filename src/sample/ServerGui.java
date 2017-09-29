@@ -26,7 +26,6 @@ public class ServerGui extends Application implements EventHandler {
     private TextArea chat, event;
     private TextField tPortNumber;
     public Server server;
-    //private Server[] serverArray;
     private Server newServ;
     Stage window;
     Scene scene;
@@ -37,8 +36,6 @@ public class ServerGui extends Application implements EventHandler {
         window = primaryStage;
         window.setTitle("File Transfer Server");
         server = null;
-        //serverArray = new Server[120];
-
         GridPane gridPane = new GridPane();
         gridPane.setPadding(new Insets(10, 10, 10, 10));
         gridPane.setVgap(8);
@@ -80,22 +77,12 @@ public class ServerGui extends Application implements EventHandler {
         }
         else{
             int port = 1700;
-            /*int[] portArray = new int[120];
-            for(int i = 0; i < 120; i++){
-                portArray[i] = port;
-                port++;
-            }*/
             try {
                 port = Integer.parseInt(tPortNumber.getText().trim());
             }catch (Exception e){
                 event.appendText("Invalid port number");
             }
-            /*for(int i = 0; i < 120; i++){
-                serverArray[i] = new Server(portArray[i],this);
-
-            }*/
             server = new Server(port,this);
-            //setNewServ(server);
             new ServerRunning().start();
             stopStart.setText("Stop");
             tPortNumber.setEditable(false);

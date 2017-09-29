@@ -19,7 +19,6 @@ public class Chatmessage implements Serializable{
         this.fileName = fileName;
         this.fileSize = fileSize;
         this.serverMessage = serverMessage;
-        //++fileId;
 
     }
 
@@ -31,9 +30,6 @@ public class Chatmessage implements Serializable{
         return fileSize;
     }
 
-    /*public Integer getFileId() {
-        return fileId;
-    }*/
     public String getFileName() {
         return fileName;
     }
@@ -44,7 +40,6 @@ public class Chatmessage implements Serializable{
 
     public int getType() {
         return type;
-
     }
 
     public String getMessage() {

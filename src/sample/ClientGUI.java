@@ -16,6 +16,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.io.IOException;
+
 public class ClientGUI extends ServerGui implements EventHandler{
 
     private static final long serialVersionUID = 1L;
@@ -44,7 +46,6 @@ public class ClientGUI extends ServerGui implements EventHandler{
         HBox hBox = new HBox();
         GridPane.setConstraints(hBox,0,0);
 
-        //label = new Label("Server Address");
         serverAddress = new TextField();
         serverAddress.setText(defaultHost);
         portAddress = new TextField();
@@ -55,11 +56,10 @@ public class ClientGUI extends ServerGui implements EventHandler{
         VBox vBoxUser = new VBox();
         VBox vBoxRecipient = new VBox();
         label = new Label("Enter username: ");
-        //GridPane.setConstraints(label, 0, 1);
 
         tf = new TextField();
         tf.setPromptText("UserName");
-        //GridPane.setConstraints(tf, 0, 2);
+
         ta = new TextArea();
         GridPane.setConstraints(ta, 0, 2);
 
@@ -157,53 +157,96 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
     @Override
     public void handle(Event event) {
-
         Object o = event.getSource();
         if(o == logout){
-            client.sendMessage(new Chatmessage(Chatmessage.LOGOUT,"","","","",""));
+            try {
+                client.sOutput.writeObject(new Chatmessage(Chatmessage.LOGOUT,"","","",
+                        "",""));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-        if(o == whoIsIn){
-            client.sendMessage(new Chatmessage(Chatmessage.WHOISIN,"","","","",""));
+        if(o == whoIsIn) {
+            try {
+                client.sOutput.writeObject(new Chatmessage(Chatmessage.WHOISIN,"","",
+                        "","",""));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         if(connected && o == sendMessage){
-            client.sendMessage(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),recipient.getText(),fileText.getText(),"",""));
-            tf.setText("");
+            if(recipient.getText().equals("") || fileText.getText().equals("") ||sizeText.getText().equals("")
+                    || serverText.getText().equals("") || tf.getText().equals("")){
+                client.cg.append("you are missing recipient or text message\n");
+            }
+            else{
+                try {
+                    client.sOutput.writeObject(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),
+                            recipient.getText(),"","",""));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                tf.setText("");
+            }
+
         }
         if(connected && o == sendFile){
-            client.sendMessage(new Chatmessage(Chatmessage.FILE,"",recipient.getText(),
-                    fileText.getText(),sizeText.getText(),serverText.getText()));
-            fileText.setText("");
-            recipient.setText("");
-            sizeText.setText("");
-            //sendMessageToServer.setDisable(false);
+            if(recipient.getText().equals("") || fileText.getText().equals("") ||sizeText.getText().equals("")
+                    || serverText.getText().equals("")){
+                client.cg.append("you are missing recipient or filename or filesize or serverMessage\n");
+            }
+            else{
+                new WriteToServer(new Chatmessage(Chatmessage.FILE,"",recipient.getText(),
+                        fileText.getText(),sizeText.getText(),serverText.getText())).start();
+                fileText.setText("");
+                recipient.setText("");
+                sizeText.setText("");
+            }
         }
         if(connected && o == sendMessageToServer){
-            client.sendMessage(new Chatmessage(Chatmessage.CLIENTSERVERONLY,"",recipient.getText(),
-                    fileText.getText(), sizeText.getText(),""));
-            tf.setText("");
-            sendFile.setDisable(false);
+            if(recipient.getText().equals("") || fileText.getText().equals("") ||sizeText.getText().equals("")){
+               client.cg.append("you are missing recipient or filename or filesize\n");
+            }
+            else{
+                try {
+                    client.sOutput.writeObject(new Chatmessage(Chatmessage.CLIENTSERVERONLY,"",recipient.getText(),
+                            fileText.getText(), sizeText.getText(),""));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                tf.setText("");
+                sendFile.setDisable(false);
+            }
         }
 
         if(connected && o == confirm){
-            client.sendMessage(new Chatmessage(Chatmessage.CONFIRM,"","","",
-                    "",serverText.getText()));
-            serverText.setText("");
+            if(serverText.getText().equals("")){
+                client.cg.append("you are missing Confirmation message\n");
+            }
+            else{
+                try {
+                    client.sOutput.writeObject(new Chatmessage(Chatmessage.CONFIRM,"","","",
+                            "",serverText.getText()));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                serverText.setText("");
+            }
+
         }
         if(o == login){
-            String username = tf.getText().trim();
-            //System.out.p
-
+            if(tf.getText().equals("")){
+                ta.setText("Username not specified\n");
+            }
+            else{
+                String username = tf.getText().trim();
                 System.out.println(1);
                 if(tf.getText().trim().length() == 0){
-
-
-                    System.out.println(2);
                     return;
                 }
                 String server = serverAddress.getText().trim();
                 System.out.println(3);
                 if(server.length() == 0){
-                    System.out.println(4);
                     return;
                 }
                 String portNumber = portAddress.getText().trim();
@@ -220,6 +263,7 @@ public class ClientGUI extends ServerGui implements EventHandler{
                     return;
                 }
                 client = new Client(server,port,username,this);
+
                 System.out.println(8);
                 if(!client.start()){
                     System.out.println("client start");
@@ -239,6 +283,7 @@ public class ClientGUI extends ServerGui implements EventHandler{
                 serverAddress.setEditable(false);
                 portAddress.setEditable(false);
             }
-        //tf.addEventHandler(InputEvent.ANY,this);
+
+        }
     }
 }
