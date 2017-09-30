@@ -7,7 +7,9 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 
 import static sample.Client.*;
@@ -26,12 +28,20 @@ public class Client {
     public static int serverSignal = 0;
     public Chatmessage msg;
     public static FileOutputStream fOut;
+    public static String serverAcknow;
+    public static int sendTime;
+    public static int receiveTime;
+    public int loggedIn = 0;
+    public static String timeOutMsg = "Timed out.Cancel transmission\n";
     Client(String server, int port, String username, ClientGUI cg){
         this.server = server;
         this.port = port;
         this.username = username;
         this.cg = cg;
         this.msg = null;
+    }
+    public String getUserName(){
+        return username;
     }
     public boolean start(){
         try {
@@ -55,12 +65,13 @@ public class Client {
             System.out.println(12);
             sOutput = new ObjectOutputStream(socket.getOutputStream());
             System.out.println(13);
+            serverAcknow = "";
         }catch (IOException sIO){
             display("Exception creating new I/O streams: " + sIO);
             return false;
         }
-        new ListenFromServer().start();
 
+        new ListenFromServer().start();
         try{
             sOutput.writeObject(username);
         } catch (IOException e) {
@@ -101,6 +112,20 @@ class ListenFromServer extends Thread{
                     if(o.equals(serverSig)){
                         Client.serverSignal = 1;
                     }
+                    else if(o.equals(Server.acknowledgement)){
+                        receiveTime = Calendar.getInstance().get(Calendar.MILLISECOND);
+                        System.out.println("receive time: " + receiveTime);
+                        Client.serverAcknow = Server.acknowledgement;
+                        cg.append(o.toString());
+                        continue;
+                    }
+                    /*else if(o.equals(Server.alreadyLoggedInString)){
+                           cg.append(Server.alreadyLoggedInString);
+                        break;
+                    }
+                    else if(o.equals(Server.newUser)){
+                        continue;
+                    }*/
                     cg.append(o.toString());
                 }
                 else{
@@ -153,6 +178,7 @@ class WriteToServer extends Thread {
 
     public void run() {
         try {
+
             sOutput.writeObject(chatmessage);
             File file = new File(chatmessage.getFileName());
             fInput = new FileInputStream(file);
@@ -166,8 +192,33 @@ class WriteToServer extends Thread {
                     sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
                     Thread.sleep(1000);
                     System.out.println("1st chunk sent");
+                    sendTime = Calendar.getInstance().get(Calendar.MILLISECOND);
+                    System.out.println("Send time: " + sendTime);
+                    while (true){
+                        System.out.println("Client server acknow: " + Client.serverAcknow);
+                        if(Client.serverAcknow.equals(Server.acknowledgement)){
+                            if(receiveTime - sendTime <= 30000){
+                                //Client.serverAcknow = "";
+                                //sOutput.writeObject("yes");
+                                while (true){
+                                    if(ClientGUI.continueD.equals("yes")){
+                                        ClientGUI.continueD = "";
+                                        sOutput.writeObject("yes");
+                                        break;
+                                    }
+                                    System.out.println("Client GUI: " + ClientGUI.continueD);
+                                }
+                            }else{
+                                sOutput.writeObject(timeOutMsg);
+                            }
+                            break;
+                        }
+                    }
                 }
-                else {
+                if(receiveTime - sendTime > 30000){
+                    break;
+                }
+                if(serverSignal == 1) {
                     break;
                 }
             }

@@ -22,15 +22,20 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
     private static final long serialVersionUID = 1L;
     private Label label;
-    private TextField tf,recipient,fileText,sizeText,serverText;
+    private TextField tf,recipient,fileText,sizeText;
+    public static TextField serverText;
     private TextField serverAddress, portAddress;
     private Button login, logout, whoIsIn, sendMessage, sendFile, sendMessageToServer;
+    public static Button continueDownload;
     public static Button confirm;
     private TextArea ta;
     private boolean connected;
     private Client client;
     private int defaultPort = 1500;
     private String defaultHost = "localhost";
+    public static String continueD = "";
+    //public static int receiverLogOut = 0;
+
     Scene scene;
 
 
@@ -122,7 +127,12 @@ public class ClientGUI extends ServerGui implements EventHandler{
         confirm.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
         confirm.setDisable(true);
 
-        hBox1.getChildren().addAll(login, logout, whoIsIn,sendMessage, sendFile,sendMessageToServer,confirm);
+        continueDownload = new Button("Continue download");
+        continueDownload.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
+        continueDownload.setDisable(true);
+
+        hBox1.getChildren().addAll(login, logout, whoIsIn,sendMessage, sendFile,sendMessageToServer,confirm,
+                continueDownload);
         GridPane.setConstraints(hBox1, 0,3);
 
         gridPane.getChildren().addAll(hBox, hBoxUser,ta,hBox1);
@@ -160,6 +170,7 @@ public class ClientGUI extends ServerGui implements EventHandler{
         Object o = event.getSource();
         if(o == logout){
             try {
+                Server.receiverLogOut = 1;
                 client.sOutput.writeObject(new Chatmessage(Chatmessage.LOGOUT,"","","",
                         "",""));
             } catch (IOException e) {
@@ -175,21 +186,26 @@ public class ClientGUI extends ServerGui implements EventHandler{
             }
         }
         if(connected && o == sendMessage){
-            if(recipient.getText().equals("") || fileText.getText().equals("") ||sizeText.getText().equals("")
-                    || serverText.getText().equals("") || tf.getText().equals("")){
+            if(recipient.getText().equals("") || tf.getText().equals("")){
                 client.cg.append("you are missing recipient or text message\n");
             }
             else{
-                try {
-                    client.sOutput.writeObject(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),
-                            recipient.getText(),"","",""));
-                } catch (IOException e) {
-                    e.printStackTrace();
+                if(client.getUserName().equals(recipient.getText())){
+                    client.cg.append("Why are you sending file to yourself!!!!!\n");
                 }
-                tf.setText("");
-            }
+                else{
+                    try {
+                        client.sOutput.writeObject(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),
+                                recipient.getText(),"","",""));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    tf.setText("");
+                }
 
+            }
         }
+
         if(connected && o == sendFile){
             if(recipient.getText().equals("") || fileText.getText().equals("") ||sizeText.getText().equals("")
                     || serverText.getText().equals("")){
@@ -208,17 +224,31 @@ public class ClientGUI extends ServerGui implements EventHandler{
                client.cg.append("you are missing recipient or filename or filesize\n");
             }
             else{
-                try {
-                    client.sOutput.writeObject(new Chatmessage(Chatmessage.CLIENTSERVERONLY,"",recipient.getText(),
-                            fileText.getText(), sizeText.getText(),""));
-                } catch (IOException e) {
-                    e.printStackTrace();
+                if(client.getUserName().equals(recipient.getText())){
+                    client.cg.append("Why are you sending file to yourself!!!!!\n");
                 }
-                tf.setText("");
-                sendFile.setDisable(false);
+                else{
+                    try {
+                        client.sOutput.writeObject(new Chatmessage(Chatmessage.CLIENTSERVERONLY,"",recipient.getText(),
+                                fileText.getText(), sizeText.getText(),""));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    tf.setText("");
+                    sendFile.setDisable(false);
+                }
+
             }
         }
-
+        if(connected && o == continueDownload){
+            if(serverText.getText().equals("")){
+                client.cg.append("you are missing approval message\n");
+            }
+            else{
+                continueD = serverText.getText();
+                System.out.println("ContinueD in GUI: " + continueD);
+            }
+        }
         if(connected && o == confirm){
             if(serverText.getText().equals("")){
                 client.cg.append("you are missing Confirmation message\n");
@@ -239,6 +269,7 @@ public class ClientGUI extends ServerGui implements EventHandler{
                 ta.setText("Username not specified\n");
             }
             else{
+                //System.out.println("in Client gui client size: " + ServerGui.clientListSize);
                 String username = tf.getText().trim();
                 System.out.println(1);
                 if(tf.getText().trim().length() == 0){
@@ -273,17 +304,17 @@ public class ClientGUI extends ServerGui implements EventHandler{
                 label.setText("Enter your message below: ");
                 tf.setPromptText("message");
                 connected = true;
-                login.setDisable(true);
+                login.setDisable(false);
                 logout.setDisable(false);
                 whoIsIn.setDisable(false);
                 sendMessage.setDisable(false);
                 //sendFile.setDisable(false);
+                continueDownload.setDisable(false);
                 confirm.setDisable(false);
                 sendMessageToServer.setDisable(false);
                 serverAddress.setEditable(false);
                 portAddress.setEditable(false);
             }
-
         }
     }
 }

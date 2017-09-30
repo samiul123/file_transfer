@@ -27,6 +27,7 @@ public class ServerGui extends Application implements EventHandler {
     private TextField tPortNumber;
     public Server server;
     private Server newServ;
+    //public static int clientListSize = 0;
     Stage window;
     Scene scene;
 

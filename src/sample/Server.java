@@ -32,6 +32,11 @@ public class Server {
     public static ArrayList<Pending> pendingList;
     public static int pendingIndicator = 0;
     public static int logOut = 0;
+    public static String alreadyLoggedInString = "User with same name is already logged in\n" +
+            "Try with another username\n";
+    public static String newUser = "New user\n";
+    public static int alreadyLoggedIn = 0;
+    public static int receiverLogOut = 0;
     public Server(int port, ServerGui sg){
         this.sg = sg;
         this.port = port;
@@ -43,43 +48,72 @@ public class Server {
     public void start(){
         keepGoing = true;
         try {
+
             ServerSocket serverSocket = new ServerSocket(port);
             while (keepGoing){
+                int found = 0;
                 display("Server waiting for Clients on port " + port + "\n");
                 Socket socket = serverSocket.accept();
                 if(!keepGoing){
                     break;
                 }
                 ClientThread t = new ClientThread(socket);
-                display(t.username + " just connected");
-                clientLists.add(t);
-                System.out.println(clientLists.size());
-                for(int i = 0; i < pendingList.size(); i++){
-                    Pending pending = pendingList.get(i);
-                    if(pending.getRecipient().equals(t.username)){
-                        pendingIndicator = 1;
-                        t.writeMessage(pending.getSender() + " wants to send you a file. " +
-                                "Please write 'yes' or 'no' and click 'confirm' button below\n");
-                        break;
+                System.out.println("new user: " + t.username);
+                //clientLists.add(t);
+                System.out.println("Client list Size: " + clientLists.size());
+                if(clientLists.size() >= 1){
+                    for(int i = 0; i < clientLists.size(); i++){
+                        ClientThread ct = clientLists.get(i);
+                        if(ct.username.equals(t.username)){
+                            System.out.println("Already logged IN");
+                            alreadyLoggedIn = 1;
+                            System.out.println("found paise");
+                            found = 1;
+                            t.writeMessage(alreadyLoggedInString);
+                            t = null;
+                            break;
+                        }
                     }
-                }
-                t.start();
-            }
-            try{
-                serverSocket.close();
-                for(int i = 0; i < clientLists.size(); i++){
-                    ClientThread tc = clientLists.get(i);
-                    try {
-                        tc.sInput.close();
-                        tc.sOutput.close();
-                        tc.socket.close();
-                    }catch (IOException ioE){
+                    if(found == 0){
+                        System.out.println("found pay nai");
+                        alreadyLoggedIn = 0;
+                    }
 
-                    }
                 }
-            }catch (Exception e){
-                display("Exception closing the server and clients: " + e);
+                if(alreadyLoggedIn != 1){
+                    clientLists.add(t);
+                    System.out.println("after add Client list size: " + clientLists.size());
+                    display(t.username + " just connected");
+                    for(int i = 0; i < pendingList.size(); i++){
+                        Pending pending = pendingList.get(i);
+                        if(pending.getRecipient().equals(t.username)){
+                            pendingIndicator = 1;
+                            t.writeMessage(pending.getSender() + " wants to send you a file. " +
+                                    "Please write 'yes' or 'no' and click 'confirm' button below\n");
+                            break;
+                        }
+                    }
+                    t.start();
+                }
             }
+            if(alreadyLoggedIn != 1){
+                try{
+                    serverSocket.close();
+                    for(int i = 0; i < clientLists.size(); i++){
+                        ClientThread tc = clientLists.get(i);
+                        try {
+                            tc.sInput.close();
+                            tc.sOutput.close();
+                            tc.socket.close();
+                        }catch (IOException ioE){
+
+                        }
+                    }
+                }catch (Exception e){
+                    display("Exception closing the server and clients: " + e);
+                }
+            }
+
         }catch (IOException e){
             String msg = sdf.format(new Date()) + "Exception on new ServerSocket: " + e + "\n";
             display(msg);
@@ -384,6 +418,7 @@ public class Server {
                 return false;
             }
             try {
+                int successful = 0;
                 System.out.println("Content writing");
                 fInput = new FileInputStream(fileN);
                 byte[] buffer = new byte[buffer_size];
@@ -391,8 +426,8 @@ public class Server {
                 sOutput.writeObject(fileN.length());
                 while ((bytesRead = fInput.read(buffer)) > 0){
                     System.out.println(logOut);
-                    System.out.println("sInput available: " + sInput.available());
-                    if (sInput.available() > 0) {
+                    System.out.println("receiver logOut: " + Server.receiverLogOut);
+                    if (receiverLogOut == 1) {
                         Object o = sInput.readObject();
                         if(o instanceof Chatmessage){
                             if(((Chatmessage) o).getType() == Chatmessage.LOGOUT){
@@ -400,14 +435,18 @@ public class Server {
                                 pendingList.add(pending);
                                 return false;
                             }
-
                         }
                     } else {
+                        successful = 1;
                         sOutput.writeObject(bytesRead);
                         sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
                         Thread.sleep(1000);
                     }
-
+                }
+                if(successful == 1){
+                    System.out.println("File successfully written");
+                    fInput.close();
+                    fileN.delete();
                 }
                 System.out.println("content written");
             } catch (IOException e) {
@@ -426,6 +465,7 @@ public class Server {
             Object o;
             Integer totalByteRead = 0;
             int interrupt = 0;
+            int timeOut = 0;
             display("Server downloading file from " + username + "\n");
             do {
                 System.out.println("in loop\n");
@@ -475,17 +515,37 @@ public class Server {
                 fOut.write(buffer, 0, bytesRead);
                 System.out.println("5");
                 sOutput.writeObject(acknowledgement);
-                /*while (true){
+                while (true){
                     o = sInput.readObject();
                     if(o instanceof String){
+                        System.out.println("no");
                         if(o.equals("yes")){
+                            System.out.println("yes");
+                            break;
+                        }
+                        else if(o.equals(Client.timeOutMsg)){
+                            System.out.println("Client timeOut message: " + Client.timeOutMsg);
+                            timeOut = 1;
                             break;
                         }
                     }
-                }*/
-
+                }
+                if(timeOut == 1){
+                    break;
+                }
             } while (bytesRead == buffer_size);
             System.out.println("total byte read: " + totalByteRead);
+            if(timeOut == 1){
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                writeMessage("FROM SERVER: Server received the 'TIME OUT MESSAGE'.Server is deleting the chunks\n");
+                fOut.close();
+                f.delete();
+                return false;
+            }
             if(interrupt == 0){
                 if(totalByteRead.equals(Integer.valueOf(fileSize))){
                     try {
@@ -503,7 +563,7 @@ public class Server {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    writeMessage("FROM SERVER: File size does not match the initial fileSize.Server is deleteing " +
+                    writeMessage("FROM SERVER: File size does not match the initial fileSize.Server is deleting " +
                             "the file\n");
                     fOut.close();
                     f.delete();
