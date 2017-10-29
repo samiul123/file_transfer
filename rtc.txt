@@ -1,0 +1,25 @@
+my work you need to extract the 7 feature expression from the voice such like :
+
+happy , sad, angry , fear, disgust , angry , surprise, neutral
+
+from speech emotion recognition
+
+and facial expression recognition
+
+and same for facial expression recognition extract the feature from face and using PCA feature extraction and SVM algorithm classification. for both system
+
+for speech emotion recogntion database these you will need to use :
+
+1- Surrey Audio-Visual Expressed Emotion (SAVEE) Database
+
+2- Toronto emotional speech set (TESS)
+
+3- The Ryerson Audio-Visual Database of Emotional Speech and Song (RAVDESS)
+
+facial expression recognition these are :
+
+1- The Cohn-Kanade AU-Coded Facial Expression Database (CK+)
+
+2- Surrey Audio-Visual Expressed Emotion (SAVEE) Database
+
+3- The Japanese Female Facial Expression (JAFFE) Database
