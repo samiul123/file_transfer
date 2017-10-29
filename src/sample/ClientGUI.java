@@ -22,12 +22,14 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
     private static final long serialVersionUID = 1L;
     private Label label;
-    private TextField tf,recipient,fileText,sizeText;
+    private TextField usernameText,recipient,fileText,sizeText;
     public static TextField serverText;
     private TextField serverAddress, portAddress;
-    private Button login, logout, whoIsIn, sendMessage, sendFile, sendMessageToServer;
-    public static Button continueDownload;
+    private Button login, logout, sendFile, sendMessageToServer,continueReceive,online;
+
+    //public static Button continueDownload;
     public static Button confirm;
+
     private TextArea ta;
     private boolean connected;
     private Client client;
@@ -62,13 +64,13 @@ public class ClientGUI extends ServerGui implements EventHandler{
         VBox vBoxRecipient = new VBox();
         label = new Label("Enter username: ");
 
-        tf = new TextField();
-        tf.setPromptText("UserName");
+        usernameText = new TextField();
+        usernameText.setPromptText("UserName");
 
         ta = new TextArea();
         GridPane.setConstraints(ta, 0, 2);
 
-        vBoxUser.getChildren().addAll(label, tf);
+        vBoxUser.getChildren().addAll(label, usernameText);
 
         Label label1 = new Label("Enter recipient name: ");
         recipient = new TextField();
@@ -107,13 +109,9 @@ public class ClientGUI extends ServerGui implements EventHandler{
         logout.addEventHandler(MouseEvent.MOUSE_CLICKED,this);
         logout.setDisable(true);
 
-        whoIsIn = new Button("Who is in");
-        whoIsIn.addEventHandler(MouseEvent.MOUSE_CLICKED,this);
-        whoIsIn.setDisable(true);
-
-        sendMessage = new Button("Send message");
-        sendMessage.addEventHandler(MouseEvent.MOUSE_CLICKED,this);
-        sendMessage.setDisable(true);
+        online = new Button("Active now");
+        online.addEventHandler(MouseEvent.MOUSE_CLICKED,this);
+        online.setDisable(true);
 
         sendFile = new Button("Send file to client");
         sendFile.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
@@ -127,12 +125,16 @@ public class ClientGUI extends ServerGui implements EventHandler{
         confirm.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
         confirm.setDisable(true);
 
-        continueDownload = new Button("Continue download");
+        /*continueDownload = new Button("Continue download");
         continueDownload.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
-        continueDownload.setDisable(true);
+        continueDownload.setDisable(true);*/
 
-        hBox1.getChildren().addAll(login, logout, whoIsIn,sendMessage, sendFile,sendMessageToServer,confirm,
-                continueDownload);
+        continueReceive = new Button("Continue receive");
+        continueReceive.addEventFilter(MouseEvent.MOUSE_CLICKED,this);
+        continueReceive.setDisable(true);
+
+        hBox1.getChildren().addAll(login, logout, sendFile,sendMessageToServer,confirm,
+                online);
         GridPane.setConstraints(hBox1, 0,3);
 
         gridPane.getChildren().addAll(hBox, hBoxUser,ta,hBox1);
@@ -149,16 +151,14 @@ public class ClientGUI extends ServerGui implements EventHandler{
     void connectionFailed(){
         login.setDisable(false);
         logout.setDisable(false);
-        whoIsIn.setDisable(false);
-        sendMessage.setDisable(false);
+        online.setDisable(false);
         sendFile.setDisable(false);
         label.setText("Enter username");
-        tf.setPromptText("Username");
+        usernameText.setPromptText("Username");
         portAddress.setText(""+defaultPort);
         serverAddress.setText(""+defaultHost);
         serverAddress.setEditable(false);
         portAddress.setEditable(false);
-        tf.removeEventHandler(InputEvent.ANY,this);
         connected = false;
     }
     public static void main(String[] args){
@@ -168,41 +168,22 @@ public class ClientGUI extends ServerGui implements EventHandler{
     @Override
     public void handle(Event event) {
         Object o = event.getSource();
-        if(o == logout){
+
+        if(o == online) {
             try {
-                Server.receiverLogOut = 1;
-                client.sOutput.writeObject(new Chatmessage(Chatmessage.LOGOUT,"","","",
+                client.sOutput.writeObject(new Filemessage(Filemessage.ONLINE,"","",
                         "",""));
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        if(o == whoIsIn) {
+        if(o == logout){
             try {
-                client.sOutput.writeObject(new Chatmessage(Chatmessage.WHOISIN,"","",
-                        "","",""));
+                Server.receiverLogOut = 1;
+                client.sOutput.writeObject(new Filemessage(Filemessage.LOGOUT,"","","",
+                        ""));
             } catch (IOException e) {
                 e.printStackTrace();
-            }
-        }
-        if(connected && o == sendMessage){
-            if(recipient.getText().equals("") || tf.getText().equals("")){
-                client.cg.append("you are missing recipient or text message\n");
-            }
-            else{
-                if(client.getUserName().equals(recipient.getText())){
-                    client.cg.append("Why are you sending file to yourself!!!!!\n");
-                }
-                else{
-                    try {
-                        client.sOutput.writeObject(new Chatmessage(Chatmessage.MESSAGE,tf.getText(),
-                                recipient.getText(),"","",""));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    tf.setText("");
-                }
-
             }
         }
 
@@ -212,8 +193,10 @@ public class ClientGUI extends ServerGui implements EventHandler{
                 client.cg.append("you are missing recipient or filename or filesize or serverMessage\n");
             }
             else{
-                new WriteToServer(new Chatmessage(Chatmessage.FILE,"",recipient.getText(),
-                        fileText.getText(),sizeText.getText(),serverText.getText())).start();
+
+                    new WriteToServer(new Filemessage(Filemessage.FILE,recipient.getText(),
+                            fileText.getText(),sizeText.getText(),serverText.getText())).start();
+
                 fileText.setText("");
                 recipient.setText("");
                 sizeText.setText("");
@@ -229,18 +212,18 @@ public class ClientGUI extends ServerGui implements EventHandler{
                 }
                 else{
                     try {
-                        client.sOutput.writeObject(new Chatmessage(Chatmessage.CLIENTSERVERONLY,"",recipient.getText(),
+                        client.sOutput.writeObject(new Filemessage(Filemessage.CLIENTSERVERONLY,recipient.getText(),
                                 fileText.getText(), sizeText.getText(),""));
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                    tf.setText("");
+                    usernameText.setText("");
                     sendFile.setDisable(false);
                 }
 
             }
         }
-        if(connected && o == continueDownload){
+        /*if(connected && o == continueDownload){
             if(serverText.getText().equals("")){
                 client.cg.append("you are missing approval message\n");
             }
@@ -248,15 +231,16 @@ public class ClientGUI extends ServerGui implements EventHandler{
                 continueD = serverText.getText();
                 System.out.println("ContinueD in GUI: " + continueD);
             }
-        }
+        }*/
+
         if(connected && o == confirm){
             if(serverText.getText().equals("")){
                 client.cg.append("you are missing Confirmation message\n");
             }
             else{
                 try {
-                    client.sOutput.writeObject(new Chatmessage(Chatmessage.CONFIRM,"","","",
-                            "",serverText.getText()));
+                    client.sOutput.writeObject(new Filemessage(Filemessage.CONFIRM,"","","",
+                            serverText.getText()));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -265,14 +249,13 @@ public class ClientGUI extends ServerGui implements EventHandler{
 
         }
         if(o == login){
-            if(tf.getText().equals("")){
+            if(usernameText.getText().equals("")){
                 ta.setText("Username not specified\n");
             }
             else{
-                //System.out.println("in Client gui client size: " + ServerGui.clientListSize);
-                String username = tf.getText().trim();
+                String username = usernameText.getText().trim();
                 System.out.println(1);
-                if(tf.getText().trim().length() == 0){
+                if(usernameText.getText().trim().length() == 0){
                     return;
                 }
                 String server = serverAddress.getText().trim();
@@ -300,20 +283,17 @@ public class ClientGUI extends ServerGui implements EventHandler{
                     System.out.println("client start");
                     return;
                 }
-                tf.setText("");
-                label.setText("Enter your message below: ");
-                tf.setPromptText("message");
+                usernameText.setText("");
                 connected = true;
+                online.setDisable(false);
                 login.setDisable(false);
                 logout.setDisable(false);
-                whoIsIn.setDisable(false);
-                sendMessage.setDisable(false);
-                //sendFile.setDisable(false);
-                continueDownload.setDisable(false);
+                //continueDownload.setDisable(false);
                 confirm.setDisable(false);
                 sendMessageToServer.setDisable(false);
                 serverAddress.setEditable(false);
                 portAddress.setEditable(false);
+                continueReceive.setDisable(false);
             }
         }
     }

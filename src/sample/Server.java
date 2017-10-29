@@ -1,16 +1,17 @@
 package sample;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.SimpleTimeZone;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static sample.Client.frameKind_Data;
 import static sample.Client.sOutput;
 
 
@@ -34,14 +35,18 @@ public class Server {
     public static int logOut = 0;
     public static String alreadyLoggedInString = "User with same name is already logged in\n" +
             "Try with another username\n";
-    public static String newUser = "New user\n";
     public static int alreadyLoggedIn = 0;
     public static int receiverLogOut = 0;
+    public static int interrupt = 0;
+    public static int timeOut = 0;
+    public static int sizeMismatch = 0;
+    public static String checkSumMismatch = "CheckSum did not match\n";
+    //Random rand;
     public Server(int port, ServerGui sg){
         this.sg = sg;
         this.port = port;
         sdf = new SimpleDateFormat("HH:mm:ss");
-        clientLists = new ArrayList<ClientThread>();
+        clientLists = new ArrayList<>();
         infoObjects = new ArrayList<>();
         pendingList = new ArrayList<>();
     }
@@ -59,7 +64,6 @@ public class Server {
                 }
                 ClientThread t = new ClientThread(socket);
                 System.out.println("new user: " + t.username);
-                //clientLists.add(t);
                 System.out.println("Client list Size: " + clientLists.size());
                 if(clientLists.size() >= 1){
                     for(int i = 0; i < clientLists.size(); i++){
@@ -78,7 +82,6 @@ public class Server {
                         System.out.println("found pay nai");
                         alreadyLoggedIn = 0;
                     }
-
                 }
                 if(alreadyLoggedIn != 1){
                     clientLists.add(t);
@@ -133,28 +136,6 @@ public class Server {
         sg.appendEvent(time + "\n");
     }
 
-    private synchronized boolean broadcast(String msg,String recipient){
-        String time = sdf.format(new Date());
-        String message = time + " " + msg + "\n";
-        //int found = 0;
-
-        for (int i = clientLists.size(); --i>= 0;){
-            ClientThread ct = clientLists.get(i);
-            System.out.println("broadcast: " + ct.username);
-            if(ct.username.equals(recipient)){
-                if(!ct.writeMessage(message)){
-                    clientLists.remove(i);
-                    display("Disconnected client " + ct.username + "removed from list");
-                    return false;
-                }
-                else {
-                    sg.appendChat(message);
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
     private synchronized void broadcastServer(String msg,String recipient){
         String time = sdf.format(new Date());
         String message = time + " " + msg + "\n";
@@ -174,7 +155,7 @@ public class Server {
 
     }
 
-    private synchronized void sendFile(String sender,String recipient,String fileN) throws IOException, ClassNotFoundException {
+    private synchronized void sendFile(String sender,String recipient,File fileN) throws IOException, ClassNotFoundException {
         String time = sdf.format(new Date());
         String message = time + " sending file to " + recipient + "\n";
         sg.appendEvent(message);
@@ -183,7 +164,7 @@ public class Server {
             ClientThread ct = clientLists.get(i);
             if(ct.username.equals(recipient)){
                 System.out.println("recipient: " + recipient);
-                if(!ct.writeFile(sender,recipient,new File(fileN))){
+                if(!ct.writeFile(sender,recipient,fileN)){
                     clientLists.remove(i);
                     display("Disconnected client " + ct.username + "removed from list");
                 }
@@ -206,9 +187,10 @@ public class Server {
         ObjectInputStream sInput;
         ObjectOutputStream sOutput;
         FileOutputStream fOut;
+        PrintStream ps;
         int id;
         String username;
-        Chatmessage cm;
+        Filemessage fm;
         String date;
         File f;
         FileInputStream fInput;
@@ -221,9 +203,7 @@ public class Server {
                 sOutput = new ObjectOutputStream(socket.getOutputStream());
                 sInput = new ObjectInputStream(socket.getInputStream());
                 username = (String)sInput.readObject();
-                f = new File("D:/Idea_projects/" +
-                "file_transfer/server_storage/received" + id + ".txt");
-                fOut = new FileOutputStream(f);
+
             }catch (IOException e){
                 display("Exception creating new I/O stream");
             }catch (ClassNotFoundException e){
@@ -235,28 +215,34 @@ public class Server {
             boolean keepgoing = true;
             while (keepgoing){
                 try {
-                    cm = (Chatmessage) sInput.readObject();
+                    fm = (Filemessage) sInput.readObject();
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
-                int type = cm.getType();
-                if(type == Chatmessage.FILE || type == Chatmessage.CLIENTSERVERONLY || type == Chatmessage.CONFIRM){
+                int type = fm.getType();
+                if(type == Filemessage.FILE || type == Filemessage.CLIENTSERVERONLY || type == Filemessage.CONFIRM){
                     Info info;
-                    if(type == Chatmessage.CLIENTSERVERONLY){
-                        cm.fileId = idRun;
+                    if(type == Filemessage.CLIENTSERVERONLY){
+                        fm.fileId = idRun;
                         idRun++;
                         int found = 0;
-                        String recipient = cm.getRecipient();
-                        int fileId = cm.fileId;
+                        String recipient = fm.getRecipient();
+                        int fileId = fm.fileId;
                         System.out.println("File id: " + fileId);
-                        String fileName = cm.getFileName();
-                        String filseSize = cm.getFileSize();
+                        String fileName = fm.getFileName();
+                        String filseSize = fm.getFileSize();
+                        f = new File("Server_" + fileName);
+                        try {
+                            fOut = new FileOutputStream(f);
+                            //ps = new PrintStream(fOut);
+                        } catch (FileNotFoundException e) {
+                            e.printStackTrace();
+                        }
                         Server.remainingChunkNumber = Server.chunkNumber;
                         System.out.println("remaining chunk: " + Server.remainingChunkNumber);
                         System.out.println("chunk number: " + Server.chunkNumber);
-                        Double requiredChunk = Math.ceil(Double.valueOf(filseSize)/(double) buffer_size);
                         for(int i = 0; i < clientLists.size(); i++){
                             ClientThread ct = clientLists.get(i);
                             if(ct.username.equals(recipient)){
@@ -265,7 +251,8 @@ public class Server {
                             }
                         }
                         if(found == 1){
-                            info = new Info(username,recipient,fileName,fileId);
+                            Double requiredChunk = Math.ceil(Double.valueOf(filseSize)/(double) buffer_size);
+                            info = new Info(username,recipient,f,fileId);
                             infoObjects.add(info);
                             if(requiredChunk <= (double) chunkNumber){
                                 writeMessage(sdf.format(new Date()) +
@@ -282,15 +269,14 @@ public class Server {
                                     recipient + " not connected\n");
                         }
                     }
-                    else if(type == Chatmessage.FILE){
+                    else if(type == Filemessage.FILE){
                         String fromClient;
                         String fileSize;
-                        //FlagClass lockObject;
                         System.out.println("Current thread: "+ Thread.currentThread().getName()
                         + " " + Thread.currentThread().getId());
                         try {
-                            fromClient = cm.getServerMessage();
-                            fileSize = cm.getFileSize();
+                            fromClient = fm.getServerMessage();
+                            fileSize = fm.getFileSize();
                             if(fromClient.equals("yes")){
                                 if(saveFile(fileSize)){
                                     System.out.println("info objects size: " + infoObjects.size());
@@ -306,6 +292,19 @@ public class Server {
                                         }
                                     }
                                 }
+                                else{
+                                    System.out.println("Interrupt: " + interrupt);
+                                    if(interrupt == 1){
+                                        display(username + " disconnected with a LOGOUT message\n");
+                                        keepgoing = false;
+                                    }
+                                    else if(timeOut == 1){
+                                        display("Timed out while downloading\n");
+                                    }
+                                    else if(sizeMismatch == 1){
+                                        display("File size did not match\n");
+                                    }
+                                }
                             }
                             else{
                                 close();
@@ -318,7 +317,7 @@ public class Server {
                     }
                     else{
                         String fromReceiver;
-                        fromReceiver = cm.getServerMessage();
+                        fromReceiver = fm.getServerMessage();
                         System.out.println(fromReceiver);
                         if(fromReceiver.equals("yes")){
                             System.out.println(idRun);
@@ -329,7 +328,6 @@ public class Server {
                                     System.out.println(info1.getRecipient());
                                     System.out.println(idRun);
                                     if(info1.getFileId() == idRun - 1){
-                                        //boolean found;
                                         System.out.println(idRun);
                                         try {
                                             System.out.println(info1.getRecipient());
@@ -348,7 +346,7 @@ public class Server {
                                     if(pending.getRecipient().equals(username)){
                                         try {
                                             sendFile(pending.getSender(), pending.getRecipient(),
-                                                    pending.getFile().getName());
+                                                    pending.getFile());
                                         } catch (IOException e) {
                                             e.printStackTrace();
                                         } catch (ClassNotFoundException e) {
@@ -357,29 +355,18 @@ public class Server {
                                     }
                                 }
                             }
-
                         }
                         else {
                             close();
                         }
                     }
                 }
-                if(type == Chatmessage.MESSAGE){
-                    String recipient = cm.getRecipient();
-                    String message = cm.getMessage();
-                    System.out.println("Message");
-                    boolean found = broadcast(username + ": " + message, recipient);
-                    if(found == false){
-                        writeMessage(recipient + " not connected\n");
-                    }
-
-                }
-                if(type == Chatmessage.LOGOUT){
+                if(type == Filemessage.LOGOUT){
                     display(username + " disconnected with a LOGOUT message\n");
                     keepgoing = false;
                 }
-                if(type == Chatmessage.WHOISIN){
-                    writeMessage("List of the users connected at " + sdf.format(new Date()) + "\n");
+                if(type == Filemessage.ONLINE){
+                    writeMessage("Online users: " + sdf.format(new Date()) + "\n");
                     for (int i = 0; i < clientLists.size(); i++){
                         ClientThread ct = clientLists.get(i);
                         writeMessage((i + 1) + ": " + ct.username + " since " + ct.date);
@@ -423,20 +410,22 @@ public class Server {
                 fInput = new FileInputStream(fileN);
                 byte[] buffer = new byte[buffer_size];
                 Integer bytesRead = 0;
+                sOutput.writeObject(fileN);
                 sOutput.writeObject(fileN.length());
                 while ((bytesRead = fInput.read(buffer)) > 0){
                     System.out.println(logOut);
                     System.out.println("receiver logOut: " + Server.receiverLogOut);
                     if (receiverLogOut == 1) {
                         Object o = sInput.readObject();
-                        if(o instanceof Chatmessage){
-                            if(((Chatmessage) o).getType() == Chatmessage.LOGOUT){
+                        if(o instanceof Filemessage){
+                            if(((Filemessage) o).getType() == Filemessage.LOGOUT){
                                 Pending pending = new Pending(sender,recipient,fileN);
                                 pendingList.add(pending);
                                 return false;
                             }
                         }
-                    } else {
+                    }
+                    else {
                         successful = 1;
                         sOutput.writeObject(bytesRead);
                         sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
@@ -458,14 +447,99 @@ public class Server {
             }
             return true;
         }
+        //ArrayList<Integer> integers = new ArrayList<>();
+        public StringBuilder doDeStuff(String data){
+            int dataLength = data.length();
+            int counter = 0;
+            byte[] buffer = new byte[buffer_size];
+
+            StringBuilder mainData = new StringBuilder();
+            StringBuilder out = new StringBuilder();
+            String toFile;
+            for(int i = 8; i < dataLength - 8; i++){
+                mainData.append(data.charAt(i));
+            }
+            for(int i = 0; i < mainData.length(); i++){
+                if(mainData.charAt(i) == '1'){
+                    counter++;
+                    out.append(mainData.charAt(i));
+                }else{
+                    out.append(mainData.charAt(i));
+                    counter = 0;
+                }
+                if(counter == 5){
+                    if((i+2)!=mainData.length())
+                        out.append(mainData.charAt(i+2));
+                    else
+                        out.append('1');
+                    i=i+2;
+                    counter = 1;
+                }
+            }
+            System.out.println("DeStuffed message: " + out);
+            return out;
+        }
+        public Integer hasCheckSum(byte[] data){
+            Integer xorChecksum = 0;
+            for(int i = 0; i < data.length; i++){
+                xorChecksum ^= data[i];
+            }
+            display("ServerCheckSum: " + xorChecksum);
+            return xorChecksum;
+        }
+        byte[] fromBinary( String s )
+        {
+            int sLen = s.length();
+            byte[] toReturn = new byte[(sLen + Byte.SIZE - 1) / Byte.SIZE];
+            char c;
+            for( int i = 0; i < sLen; i++ )
+                if( (c = s.charAt(i)) == '1' )
+                    toReturn[i / Byte.SIZE] = (byte) (toReturn[i / Byte.SIZE] | (0x80 >>> (i % Byte.SIZE)));
+                else if ( c != '0' )
+                    throw new IllegalArgumentException();
+            return toReturn;
+        }
+        public String doBitStuff(StringBuilder data){
+
+            String wrapper = "01111110";
+            int counter = 0;
+            StringBuilder res = new StringBuilder();
+            StringBuilder dataToBin = new StringBuilder();
+            //convert 1st buffer into binary string
+            System.out.println("Before bit stuffing: " + data);
+            System.out.println("Stuffing chunk");
+            for(int i = 0; i < data.length(); i++){
+                if(data.charAt(i) == '1'){
+                    counter++;
+                    res.append(data.charAt(i));
+                }
+                else{
+                    res.append(data.charAt(i));
+                    counter = 0;
+                }
+                if(counter == 5){
+                    res.append('0');
+                    counter = 0;
+                }
+            }
+            String in = wrapper + res + wrapper;
+            System.out.println("After bit Stuffing: " + in);
+            return in;
+        }
         private boolean saveFile(String fileSize) throws IOException, ClassNotFoundException {
             System.out.println("in save file\n");
             byte[] buffer = new byte[buffer_size];
+            byte[] buffer1 = new byte[buffer_size];
+            StringBuilder severDestuffed = new StringBuilder();
             Integer bytesRead = 0;
             Object o;
             Integer totalByteRead = 0;
-            int interrupt = 0;
-            int timeOut = 0;
+            String checksum = "";
+            byte serverSeq = 0;
+            byte serverAck = 0;
+            //BigInteger bi;
+            Integer serverCheckSum = 0;
+            String servercheckSumStr ="";
             display("Server downloading file from " + username + "\n");
             do {
                 System.out.println("in loop\n");
@@ -474,16 +548,8 @@ public class Server {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+
                 o = sInput.readObject();
-                if(o instanceof Chatmessage){
-                    if(((Chatmessage) o).getType() == Chatmessage.LOGOUT){
-                        interrupt = 1;
-                        writeMessage(serverSig);
-                        fOut.close();
-                        f.delete();
-                        break;
-                    }
-                }
                 System.out.println("1");
                 System.out.println(o.getClass());
                 if (!(o instanceof Integer)) {
@@ -496,41 +562,102 @@ public class Server {
                 Server.chunkNumber -= (bytesRead/Server.buffer_size);
                 System.out.println("2");
                 o = sInput.readObject();
-                if(o instanceof Chatmessage){
-                    if(((Chatmessage) o).getType() == Chatmessage.LOGOUT){
-                        interrupt = 1;
-                        writeMessage(serverSig);
-                        fOut.close();
-                        f.delete();
-                        break;
-                    }
-                }
+
                 System.out.println("3");
                 if (!(o instanceof byte[])) {
                     display("Something is wrong 2");
                     return false;
                 }
                 buffer = (byte[])o;
+                serverCheckSum = hasCheckSum(buffer);
+                servercheckSumStr = ("0000000" + Integer.toBinaryString(0xFF & serverCheckSum)).replaceAll(".*(.{8})$", "$1");
                 System.out.println("4");
-                fOut.write(buffer, 0, bytesRead);
-                System.out.println("5");
-                sOutput.writeObject(acknowledgement);
-                while (true){
-                    o = sInput.readObject();
-                    if(o instanceof String){
-                        System.out.println("no");
-                        if(o.equals("yes")){
-                            System.out.println("yes");
-                            break;
+
+                timeOut = 0;
+                o = sInput.readObject();
+                if(!(o instanceof String)){
+                    display("Something is wrong 3");
+                    return false;
+                }
+                display("Server received from sender: " + o);
+
+                severDestuffed = doDeStuff((String) o);
+                display("Server deStuffed: " + severDestuffed);
+                String frame_kind = String.valueOf(severDestuffed).substring(0,8);
+                String seq_no = String.valueOf(severDestuffed).substring(8,16);
+                String ack_no = String.valueOf(severDestuffed).substring(16,24);
+                String payload = String.valueOf(severDestuffed).substring(24,severDestuffed.length() - 8);
+                checksum = String.valueOf(severDestuffed).substring(severDestuffed.length() - 8,severDestuffed.length());
+                if(servercheckSumStr.equals(checksum)){
+                    display("CheckSums matched");
+                    buffer1 = fromBinary(String.valueOf(payload));
+                    //fOut.write(buffer1, 0, bytesRead);
+                    fOut.write(buffer1);
+                    System.out.println("5");
+                    //building server frame
+                    StringBuilder serverFrame = new StringBuilder();
+                    serverSeq++;
+                    serverAck++;
+                    //1st frame_kind
+                    String server_frame_kind = ("0000000" + Integer.toBinaryString(0xFF & Client.framKind_Ack)).replaceAll(".*(.{8})$", "$1");
+                    System.out.println("Server frame kind: " + server_frame_kind);
+                    serverFrame.append(server_frame_kind);
+                    //2nd seq_no
+                    String server_seq_no = ("0000000" + Integer.toBinaryString(0xFF & serverSeq)).replaceAll(".*(.{8})$", "$1");
+                    System.out.println("Server seq_no: " + server_seq_no);
+                    serverFrame.append(server_seq_no);
+                    //3rd ack no
+                    String server_ack_no = ("0000000" + Integer.toBinaryString(0xFF & serverAck)).replaceAll(".*(.{8})$", "$1");
+                    System.out.println("Server ack_no: " + server_ack_no);
+                    serverFrame.append(server_ack_no);
+                    //4th payload
+                    String server_payload = ("0000000" + Integer.toBinaryString(0xFF & 0)).replaceAll(".*(.{8})$", "$1");
+                    System.out.println("Server payLoad: " + server_payload);
+                    serverFrame.append(server_payload);
+                    //5th checksum
+                    String server_checkSum = ("0000000" + Integer.toBinaryString(0xFF & 0)).replaceAll(".*(.{8})$", "$1");
+                    System.out.println("Server checkSum: " + server_checkSum);
+                    serverFrame.append(server_checkSum);
+                    String serverFrameBitStuffed = doBitStuff(serverFrame);
+                    sOutput.writeObject(serverFrameBitStuffed);
+
+                    while (true){
+                        System.out.println("Server waiting");
+                        o = sInput.readObject();
+                        if(o instanceof String){
+                            System.out.println("no");
+                            if(o.equals("yes")){
+                                System.out.println("yes");
+                                break;
+                            }
+                            else if(o.equals(Client.timeOutMsg)){
+                                System.out.println("Client timeOut message: " + Client.timeOutMsg);
+                                timeOut = 1;
+                                break;
+                            }
                         }
-                        else if(o.equals(Client.timeOutMsg)){
-                            System.out.println("Client timeOut message: " + Client.timeOutMsg);
-                            timeOut = 1;
-                            break;
+                        else if(o instanceof Filemessage){
+                            if(((Filemessage) o).getType() == Filemessage.LOGOUT){
+                                interrupt = 1;
+                                display("File downloading cancelled\n");
+                                writeMessage(serverSig);
+                                fOut.close();
+                                f.delete();
+                                break;
+                            }
                         }
                     }
                 }
-                if(timeOut == 1){
+                else{
+                    sOutput.writeObject(checkSumMismatch);
+                }
+                //buffer1 = fromBinary(String.valueOf(payload));
+                //fOut.write(buffer1, 0, bytesRead);
+                //fOut.write(buffer1);
+                //System.out.println("5");
+                //sOutput.writeObject(acknowledgement);
+
+                if(interrupt == 1 || totalByteRead.equals(Integer.valueOf(fileSize))){
                     break;
                 }
             } while (bytesRead == buffer_size);
@@ -563,6 +690,7 @@ public class Server {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+                    sizeMismatch = 1;
                     writeMessage("FROM SERVER: File size does not match the initial fileSize.Server is deleting " +
                             "the file\n");
                     fOut.close();

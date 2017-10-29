@@ -23,7 +23,7 @@ import java.awt.event.WindowListener;
 public class ServerGui extends Application implements EventHandler {
     private static final long serialVersionUID = 1L;
     private Button stopStart;
-    private TextArea chat, event;
+    private TextArea event;
     private TextField tPortNumber;
     public Server server;
     private Server newServ;
@@ -53,13 +53,12 @@ public class ServerGui extends Application implements EventHandler {
         stopStart.setOnAction(e->startStopServer());
         hBox.getChildren().addAll(label, tPortNumber,stopStart);
 
-        chat = new TextArea();
-        GridPane.setConstraints(chat, 0, 1);
 
         event = new TextArea();
-        GridPane.setConstraints(event, 0, 2);
+        event.setMinHeight(350);
+        GridPane.setConstraints(event, 0, 1);
 
-        gridPane.getChildren().addAll(hBox, chat, event);
+        gridPane.getChildren().addAll(hBox, event);
 
         scene = new Scene(gridPane,400, 400);
 
@@ -90,9 +89,7 @@ public class ServerGui extends Application implements EventHandler {
         }
 
     }
-    void appendChat(String str){
-        chat.appendText(str);
-    }
+
     void appendEvent(String str){
         event.appendText(str);
     }
@@ -111,7 +108,6 @@ public class ServerGui extends Application implements EventHandler {
         public void run(){
             server.start();
             stopStart.setText("Start");
-            //System.out.println("start");
             tPortNumber.setEditable(true);
             event.appendText("Server crashed\n");
             server = null;
