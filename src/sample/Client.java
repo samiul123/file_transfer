@@ -1,9 +1,11 @@
 package sample;
 
 import com.sun.scenario.effect.impl.prism.ps.PPSBlend_ADDPeer;
+import javafx.application.Platform;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
@@ -34,6 +36,7 @@ public class Client {
     public static int sendTime;
     public static int receiveTime;
     public static String fileName = "";
+    public static int timeOutHoise = 0;
     public int loggedIn = 0;
     public static String timeOutMsg = "Timed out.Cancel transmission\n";
     public static String clientcheckSum ="";
@@ -54,6 +57,7 @@ public class Client {
         try {
             System.out.println(9);
             socket = new Socket(server, port);
+            socket.setSoTimeout(30000);
         } catch (UnknownHostException e) {
             e.printStackTrace();
             return false;
@@ -66,11 +70,11 @@ public class Client {
                 "Username: " + username;
         display(msg);
         try {
-            System.out.println(11);
+            //System.out.println(11);
             sInput = new ObjectInputStream(socket.getInputStream());
-            System.out.println(12);
+            //System.out.println(12);
             sOutput = new ObjectOutputStream(socket.getOutputStream());
-            System.out.println(13);
+            //System.out.println(13);
             serverAcknow = "";
         } catch (IOException sIO) {
             display("Exception creating new I/O streams: " + sIO);
@@ -158,11 +162,11 @@ public class Client {
                             cg.append(Server.acknowledgement);
                             continue;
                         }
-                        else if(o.equals(Server.checkSumMismatch)){
+                        /*else if(o.equals(Server.checkSumMismatch)){
                             clientcheckSum = Server.checkSumMismatch;
                             cg.append(clientcheckSum);
                             continue;
-                        }
+                        }*/
                         cg.append(o.toString());
                     } else if (o instanceof File) {
                         File file = (File) o;
@@ -198,8 +202,12 @@ public class Client {
                         System.out.println("received file");
                         cg.append(sdf.format(new Date()) + ": " + "Received file ..\n");
                     }
-
-                } catch (IOException e) {
+                }
+                catch(SocketTimeoutException s){
+                    System.out.println("Time out hoise");
+                    timeOutHoise = 1;
+                }
+                catch (IOException e) {
                     display("Server has closed the connection: " + e);
                     e.printStackTrace();
                     break;
@@ -207,10 +215,10 @@ public class Client {
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
-
             }
         }
     }
+
 }
 class WriteToServer extends Thread {
     private Filemessage filemessage;
@@ -290,7 +298,7 @@ class WriteToServer extends Thread {
                         //System.out.println("Client server acknow: " + Client.serverAcknow);
                         if(Client.serverAcknow.equals(Server.acknowledgement)){
                             //System.out.println("12");
-                            if(receiveTime - sendTime <= 30000){
+                            if(timeOutHoise == 0){
                                 //System.out.println("13");
                                 while (true){
                                     //System.out.println("Client GUI: " + ClientGUI.continueD);
@@ -300,26 +308,27 @@ class WriteToServer extends Thread {
                                         break;
                                     }
                                 }
-                            }else{
-                                //if time out ,sending again
-                                sOutput.writeObject(timeOutMsg);
-                                sOutput.writeObject(bytesRead);
-                                sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
-                                sOutput.writeObject(doBitStuff(toSend));
+                                break;
                             }
-                            break;
                         }
-                        else if(clientcheckSum.equals(Server.checkSumMismatch)){
+                        else if(timeOutHoise == 1){
+                            //if time out ,sending again
+                            sOutput.writeObject(timeOutMsg);
                             sOutput.writeObject(bytesRead);
                             sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
                             sOutput.writeObject(doBitStuff(toSend));
-                            break;
+                            timeOutHoise = 0;
                         }
+                        /*else if(clientcheckSum.equals(Server.checkSumMismatch)){
+                            sOutput.writeObject(bytesRead);
+                            sOutput.writeObject(Arrays.copyOf(buffer, buffer.length));
+                            sOutput.writeObject(doBitStuff(toSend));
+                        }*/
                     }
                 }
-                if(receiveTime - sendTime > 30000){
+                /*if(receiveTime - sendTime > 30000){
                     break;
-                }
+                }*/
                 if(serverSignal == 1) {
                     break;
                 }
@@ -348,7 +357,9 @@ class WriteToServer extends Thread {
             dataToBin.append(Integer.toBinaryString(data[i]));
         }*/
         System.out.println("Before bit stuffing: " + data);
+
         System.out.println("Stuffing chunk");
+
         for(int i = 0; i < data.length(); i++){
             if(data.charAt(i) == '1'){
                 counter++;
@@ -365,6 +376,7 @@ class WriteToServer extends Thread {
         }
         String in = wrapper + res + wrapper;
         System.out.println("After bit Stuffing: " + in);
+
         return in;
     }
     public byte hasCheckSum(byte[] data){

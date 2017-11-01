@@ -484,7 +484,7 @@ public class Server {
             for(int i = 0; i < data.length; i++){
                 xorChecksum ^= data[i];
             }
-            display("ServerCheckSum: " + xorChecksum);
+            //display("ServerCheckSum: " + xorChecksum);
             return xorChecksum;
         }
         byte[] fromBinary( String s )
@@ -526,6 +526,7 @@ public class Server {
             System.out.println("After bit Stuffing: " + in);
             return in;
         }
+
         private boolean saveFile(String fileSize) throws IOException, ClassNotFoundException {
             System.out.println("in save file\n");
             byte[] buffer = new byte[buffer_size];
@@ -535,13 +536,15 @@ public class Server {
             Object o;
             Integer totalByteRead = 0;
             String checksum = "";
-            byte serverSeq = 0;
+            byte serverSeq = 1;
             byte serverAck = 0;
+            String receivedFrame = "";
             //BigInteger bi;
             Integer serverCheckSum = 0;
             String servercheckSumStr ="";
             display("Server downloading file from " + username + "\n");
             do {
+                timeOut = 0;
                 System.out.println("in loop\n");
                 try {
                     Thread.sleep(1000);
@@ -571,17 +574,17 @@ public class Server {
                 buffer = (byte[])o;
                 serverCheckSum = hasCheckSum(buffer);
                 servercheckSumStr = ("0000000" + Integer.toBinaryString(0xFF & serverCheckSum)).replaceAll(".*(.{8})$", "$1");
+                display("CheckSum by Server: " + servercheckSumStr);
                 System.out.println("4");
 
-                timeOut = 0;
                 o = sInput.readObject();
                 if(!(o instanceof String)){
                     display("Something is wrong 3");
                     return false;
                 }
                 display("Server received from sender: " + o);
-
-                severDestuffed = doDeStuff((String) o);
+                receivedFrame = (String)o;
+                severDestuffed = doDeStuff(receivedFrame);
                 display("Server deStuffed: " + severDestuffed);
                 String frame_kind = String.valueOf(severDestuffed).substring(0,8);
                 String seq_no = String.valueOf(severDestuffed).substring(8,16);
@@ -649,14 +652,13 @@ public class Server {
                     }
                 }
                 else{
-                    sOutput.writeObject(checkSumMismatch);
+                    //sOutput.writeObject(checkSumMismatch);
+                    //checkSUm mismatched.So server is discarding the data it received
+                    display("checkSUm mismatched.So server is discarding the data it received");
+                    bytesRead = 0;
+                    buffer = new byte[buffer_size];
+                    receivedFrame = "";
                 }
-                //buffer1 = fromBinary(String.valueOf(payload));
-                //fOut.write(buffer1, 0, bytesRead);
-                //fOut.write(buffer1);
-                //System.out.println("5");
-                //sOutput.writeObject(acknowledgement);
-
                 if(interrupt == 1 || totalByteRead.equals(Integer.valueOf(fileSize))){
                     break;
                 }
