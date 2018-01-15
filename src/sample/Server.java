@@ -233,6 +233,7 @@ public class Server {
                         System.out.println("File id: " + fileId);
                         String fileName = fm.getFileName();
                         String filseSize = fm.getFileSize();
+                        //long filseSize = new File(fileName).getTotalSpace();
                         f = new File("Server_" + fileName);
                         try {
                             fOut = new FileOutputStream(f);
@@ -251,7 +252,7 @@ public class Server {
                             }
                         }
                         if(found == 1){
-                            Double requiredChunk = Math.ceil(Double.valueOf(filseSize)/(double) buffer_size);
+                            Double requiredChunk = Math.ceil((Double.valueOf(filseSize)/(double) buffer_size));
                             info = new Info(username,recipient,f,fileId);
                             infoObjects.add(info);
                             if(requiredChunk <= (double) chunkNumber){
@@ -272,20 +273,22 @@ public class Server {
                     else if(type == Filemessage.FILE){
                         String fromClient;
                         String fileSize;
+                        //long fileSize;
                         System.out.println("Current thread: "+ Thread.currentThread().getName()
                         + " " + Thread.currentThread().getId());
                         try {
                             fromClient = fm.getServerMessage();
                             fileSize = fm.getFileSize();
+                            //fileSize = new
                             if(fromClient.equals("yes")){
                                 if(saveFile(fileSize)){
-                                    System.out.println("info objects size: " + infoObjects.size());
+                                    //System.out.println("info objects size: " + infoObjects.size());
                                     for(int i = 0; i < infoObjects.size(); i++){
                                         Info info1 = infoObjects.get(i);
-                                        System.out.println("IdRun: " + idRun);
-                                        System.out.println("getFieldId: " + info1.getFileId());
+                                        //System.out.println("IdRun: " + idRun);
+                                        //System.out.println("getFieldId: " + info1.getFileId());
                                         if(info1.getFileId() == idRun - 1){
-                                            System.out.println("in File");
+                                            //System.out.println("in File");
                                             broadcastServer(info1.getSender() + " wants to send you a file "+
                                                     "Please write 'yes' or 'no' and click" +
                                                     " 'confirm' button below\n",info1.getRecipient());
@@ -320,15 +323,15 @@ public class Server {
                         fromReceiver = fm.getServerMessage();
                         System.out.println(fromReceiver);
                         if(fromReceiver.equals("yes")){
-                            System.out.println(idRun);
-                            System.out.println(infoObjects.size());
+                            //System.out.println(idRun);
+                            //System.out.println(infoObjects.size());
                             if(pendingIndicator == 0){
                                 for(int i = 0; i < infoObjects.size(); i++){
                                     Info info1 = infoObjects.get(i);
-                                    System.out.println(info1.getRecipient());
-                                    System.out.println(idRun);
+                                    //System.out.println(info1.getRecipient());
+                                    //System.out.println(idRun);
                                     if(info1.getFileId() == idRun - 1){
-                                        System.out.println(idRun);
+                                        //System.out.println(idRun);
                                         try {
                                             System.out.println(info1.getRecipient());
                                             sendFile(info1.getSender(),info1.getRecipient(),info1.getFileName());
@@ -450,7 +453,7 @@ public class Server {
         //ArrayList<Integer> integers = new ArrayList<>();
         public StringBuilder doDeStuff(String data){
             int dataLength = data.length();
-            int counter = 0;
+            int limit = 0;
             byte[] buffer = new byte[buffer_size];
 
             StringBuilder mainData = new StringBuilder();
@@ -461,19 +464,19 @@ public class Server {
             }
             for(int i = 0; i < mainData.length(); i++){
                 if(mainData.charAt(i) == '1'){
-                    counter++;
+                    limit++;
                     out.append(mainData.charAt(i));
                 }else{
                     out.append(mainData.charAt(i));
-                    counter = 0;
+                    limit = 0;
                 }
-                if(counter == 5){
+                if(limit == 5){
                     if((i+2)!=mainData.length())
                         out.append(mainData.charAt(i+2));
                     else
                         out.append('1');
                     i=i+2;
-                    counter = 1;
+                    limit = 1;
                 }
             }
             System.out.println("DeStuffed message: " + out);

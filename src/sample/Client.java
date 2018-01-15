@@ -282,9 +282,6 @@ class WriteToServer extends Thread {
                     toSend.append(checkSumStr);
                     System.out.println("CHECKSUM: " + checkSumStr);
 
-                    //ReTransmission reTransmission = new ReTransmission(frame_kind,seqNo,ack,checkSumStr,buffer);
-                    //toBeReTransmitted.add(reTransmission);
-                    //System.out.println("Before bit stuffing: " + String.valueOf(toSend));
                     //frame built
 
                     String toBetransferredwithBitStuffed = doBitStuff(toSend);
@@ -349,7 +346,7 @@ class WriteToServer extends Thread {
     public String doBitStuff(StringBuilder data){
 
         String wrapper = "01111110";
-        int counter = 0;
+        int limit = 0;
         StringBuilder res = new StringBuilder();
         StringBuilder dataToBin = new StringBuilder();
         //convert 1st buffer into binary string
@@ -362,16 +359,16 @@ class WriteToServer extends Thread {
 
         for(int i = 0; i < data.length(); i++){
             if(data.charAt(i) == '1'){
-                counter++;
+                limit++;
                 res.append(data.charAt(i));
             }
             else{
                 res.append(data.charAt(i));
-                counter = 0;
+                limit = 0;
             }
-            if(counter == 5){
+            if(limit == 5){
                 res.append('0');
-                counter = 0;
+                limit = 0;
             }
         }
         String in = wrapper + res + wrapper;
